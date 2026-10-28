@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 440">
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#bceaff"/><stop offset="1" stop-color="#4fbbf2"/></linearGradient>
+ <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ffd9b3"/><stop offset="1" stop-color="#e9a778"/></linearGradient>
+ <linearGradient id="shirt" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#dce5ed"/></linearGradient>
+</defs>
+<ellipse cx="180" cy="420" rx="120" ry="13" fill="#153e5c" opacity=".15"/>
+<path d="M15 360 Q40 270 105 250 L255 250 Q320 270 345 360 L360 440 H0Z" fill="#1b2736"/>
+<path d="M82 275 Q180 245 278 275 L308 440 H52Z" fill="url(#shirt)" stroke="#222e3d" stroke-width="7"/>
+<path d="M82 276 L115 260 L140 303 L105 330 L70 312Z M278 276 L245 260 L220 303 L255 330 L290 312Z" fill="#263342"/>
+<path d="M150 249 L180 275 L210 249 L225 271 L206 310 L154 310 L135 271Z" fill="#1d2a39"/>
+<path d="M145 220 L145 270 Q180 300 215 270 L215 220Z" fill="url(#skin)"/>
+<path d="M94 107 Q89 38 180 35 Q274 37 266 125 L254 187 Q242 246 180 251 Q118 244 105 184Z" fill="url(#skin)" stroke="#d48c61" stroke-width="2"/>
+<path d="M96 122 Q77 61 117 32 Q153 4 211 18 Q260 26 274 73 L265 118 Q248 93 236 67 Q205 86 157 78 Q130 76 108 104Z" fill="#d7b16f"/>
+<path d="M103 97 Q131 50 172 48 Q213 42 248 68" fill="none" stroke="#f2d69a" stroke-width="9" stroke-linecap="round"/>
+<path d="M125 133 Q145 119 160 133" fill="none" stroke="#855b48" stroke-width="5" stroke-linecap="round"/>
+<path d="M200 133 Q218 119 235 133" fill="none" stroke="#855b48" stroke-width="5" stroke-linecap="round"/>
+<ellipse cx="145" cy="150" rx="13" ry="16" fill="#fff"/><ellipse cx="215" cy="150" rx="13" ry="16" fill="#fff"/>
+<ellipse cx="148" cy="152" rx="7" ry="10" fill="#38556b"/><ellipse cx="212" cy="152" rx="7" ry="10" fill="#38556b"/>
+<circle cx="150" cy="149" r="3" fill="#fff"/><circle cx="214" cy="149" r="3" fill="#fff"/>
+<path d="M177 152 L168 181 Q180 190 193 180" fill="none" stroke="#d28d67" stroke-width="4" stroke-linecap="round"/>
+<path d="M148 202 Q180 226 214 201 Q204 231 180 231 Q158 229 148 202Z" fill="#fff"/>
+<path d="M153 204 Q180 215 209 203" fill="none" stroke="#a64c48" stroke-width="4" stroke-linecap="round"/>
+<path d="M136 323 L180 351 L224 323 L214 440 H146Z" fill="#fff" stroke="#202c3a" stroke-width="5"/>
+<path d="M180 351 L180 440" stroke="#202c3a" stroke-width="4"/>
+<path d="M164 354 L180 367 L196 354 L192 392 L168 392Z" fill="#222e3d"/>
+<circle cx="180" cy="374" r="15" fill="#fff" stroke="#1d2a39" stroke-width="4"/>
+<path d="M172 371 L180 365 L188 371 L185 380 L175 380Z" fill="#1d2a39"/>
+<path d="M70 304 Q46 324 40 359 L67 372 L102 332Z M290 304 Q314 324 320 359 L293 372 L258 332Z" fill="url(#shirt)" stroke="#202c3a" stroke-width="6"/>
+<circle cx="62" cy="369" r="16" fill="url(#skin)"/><circle cx="298" cy="369" r="16" fill="url(#skin)"/>
+</svg>
