@@ -100,7 +100,7 @@ export default function Home() {
         .catch(error => { console.error("Shared save failed", error); setToast("Let op: synchroniseren is tijdelijk niet gelukt."); });
     }, 350);
     return () => window.clearTimeout(timeout);
-  }, [rules, checked, todayKey, baseTime, maxTime, history, loaded, remoteHydrated, activeRules]);
+  }, [rules, checked, todayKey, baseTime, maxTime, history, loaded, remoteHydrated]);
 
   useEffect(() => {
     if (!loaded || !remoteHydrated) return;
@@ -122,7 +122,7 @@ export default function Home() {
     const interval = window.setInterval(syncFromServer, 5000);
     window.addEventListener("focus", syncFromServer);
     return () => { window.clearInterval(interval); window.removeEventListener("focus", syncFromServer); };
-  }, [loaded, remoteHydrated, rules, checked, todayKey, baseTime, maxTime, history, activeRules]);
+  }, [loaded, remoteHydrated, rules, checked, todayKey, baseTime, maxTime, history]);
 
   // At midnight, archive the finished day and start fresh for the new date.
   useEffect(() => {
