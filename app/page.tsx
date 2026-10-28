@@ -50,12 +50,14 @@ export default function Home() {
     localStorage.setItem("tobi-voetbalmissie-v2", JSON.stringify({ rules, checked, baseTime, maxTime }));
   }, [rules, checked, baseTime, maxTime, loaded]);
 
-  const activeRules = rules.filter(r => r.active).slice(0, 5);\n  const checkedCount = activeRules.filter(r => checked.includes(r.id)).length;\n  const baseEarned = useMemo(() => activeRules.filter(r => checked.includes(r.id)).reduce((sum, r) => sum + r.minutes, 0), [activeRules, checked]);\n  const perfectRoundBonus = activeRules.length === 5 && checkedCount === 5 ? 10 : 0;\n  const earned = baseEarned + perfectRoundBonus;
+  const activeRules = rules.filter(r => r.active).slice(0, 5);
+  const checkedCount = activeRules.filter(r => checked.includes(r.id)).length;
+  const baseEarned = useMemo(() => activeRules.filter(r => checked.includes(r.id)).reduce((sum, r) => sum + r.minutes, 0), [activeRules, checked]);
+  const perfectRoundBonus = activeRules.length === 5 && checkedCount === 5 ? 10 : 0;
+  const earned = baseEarned + perfectRoundBonus;
   const maxBonus = Math.max(0, timeToMinutes(maxTime) - timeToMinutes(baseTime));
   const credited = Math.min(earned, maxBonus);
   const bedtime = formatTime(timeToMinutes(baseTime) + credited);
-  const activeRules = rules.filter(r => r.active);
-  const checkedCount = activeRules.filter(r => checked.includes(r.id)).length;
 
   function toggleRule(rule: Rule) {
     if (!rule.active) return;
@@ -79,9 +81,10 @@ export default function Home() {
 
   function addRule() {
     if (!newTitle.trim()) return;
-    setRules(old => [...old, { id: Math.max(0, ...old.map(r => r.id)) + 1, title: newTitle.trim(), minutes: newMinutes, emoji: "⚽", active: true }]);
+    if (rules.length >= 5) { setToast("Je kunt maximaal 5 uitdagingen instellen."); return; }
+    setRules(old => [...old, { id: Math.max(0, ...old.map(r => r.id)) + 1, title: newTitle.trim(), minutes: 10, emoji: "⚽", active: true }]);
     setNewTitle("");
-    setNewMinutes(5);
+    setNewMinutes(10);
     setToast("Nieuwe spelregel toegevoegd!");
   }
 
@@ -115,7 +118,7 @@ export default function Home() {
             <div className="bedtime-time">{bedtime}</div>
             <div className="bedtime-progress"><span style={{ width: `${maxBonus ? Math.min(100, credited / maxBonus * 100) : 0}%` }} /></div>
             <div className="bedtime-earned">◷ <b>+ {credited} minuten verdiend!</b></div>{perfectRoundBonus > 0 && <div className="perfect-bonus">🏆 Perfecte ronde: +10 bonusminuten!</div>}
-            <div className="bedtime-foot">Standaard: {baseTime} <span>•</span> Maximaal: {maxTime}</div>
+            <div className="bedtime-foot">Standaard: {baseTime} <span>•</span> Maximaal: {maxTime}</div>{perfectRoundBonus > 0 && <div className="perfect-bonus">🏆 Perfecte ronde: +10 bonusminuten!</div>}
           </aside>
         </section>
 
