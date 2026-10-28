@@ -18,6 +18,10 @@ const initialRules: Rule[] = [
   { id: 10, title: "Goed luisteren tijdens het voetballen", description: "Op zaterdag goed luisteren tijdens het voetballen.", minutes: 10, emoji: "⚽", active: true, days: [6] },
   { id: 11, title: "Schermvrij spelen", description: "Leg telefoon, tablet en tv weg. Speel met speelgoed, maak een puzzel, bouw LEGO of verzin zelf iets leuks zonder scherm.", minutes: 10, emoji: "🧩", active: true, days: WEEKDAYS },
 ];
+const bedtimeExtras: Rule[] = [
+  { id: 101, title: "Lezen", description: "Je hebt je leesmoment gedaan.", minutes: 5, emoji: "📖", active: true, days: [0,1,2,3,4,5,6] },
+  { id: 102, title: "Bij Tobi liggen (mama of papa)", description: "Mama of papa komt bij je liggen.", minutes: 5, emoji: "🫶", active: true, days: [0,1,2,3,4,5,6] },
+];
 type DailyLog = { date: string; rules: Rule[]; checked: number[]; earnedMinutes: number; completedCount: number; totalCount: number; bedtime: string };
 type Tab = "today" | "goals" | "overview" | "logbook";
 
@@ -158,7 +162,7 @@ export default function Home() {
             const oldRules: Rule[] = Array.isArray(data.todayRules) ? data.todayRules : (Array.isArray(data.rules) ? data.rules : initialRules);
             const oldChecked: number[] = Array.isArray(data.checked) ? data.checked : [];
             const doneRules = oldRules.filter(rule => oldChecked.includes(rule.id));
-            const earnedMinutes = doneRules.reduce((sum, rule) => sum + rule.minutes, 0) + (oldRules.length === 5 && oldChecked.filter(id => oldRules.some(rule => rule.id === id)).length === 5 ? 10 : 0);
+            const earnedMinutes = doneRules.reduce((sum, rule) => sum + rule.minutes, 0) + bedtimeExtras.filter(extra => oldChecked.includes(extra.id)).reduce((sum, extra) => sum + extra.minutes, 0);
             const maxBonus = Math.max(0, timeToMinutes(data.maxTime || "20:00") - timeToMinutes(data.baseTime || "19:00"));
             const log: DailyLog = {
               date: previousDate,
@@ -206,9 +210,8 @@ export default function Home() {
     return true;
   }).slice(0, 5);
   const checkedCount = activeRules.filter(r => checked.includes(r.id)).length;
-  const baseEarned = useMemo(() => activeRules.filter(r => checked.includes(r.id)).reduce((sum, r) => sum + r.minutes, 0), [activeRules, checked]);
-  const perfectRoundBonus = activeRules.length === 5 && checkedCount === 5 ? 10 : 0;
-  const earned = baseEarned + perfectRoundBonus;
+  const baseEarned = useMemo(() => [...activeRules, ...bedtimeExtras].filter(r => checked.includes(r.id)).reduce((sum, r) => sum + r.minutes, 0), [activeRules, checked]);
+  const earned = baseEarned;
   const maxBonus = Math.max(0, timeToMinutes(maxTime) - timeToMinutes(baseTime));
   const credited = Math.min(earned, maxBonus);
   const bedtime = formatTime(timeToMinutes(baseTime) + credited);
@@ -228,7 +231,7 @@ export default function Home() {
     setChecked(old => [...old, rule.id]);
     setLastScored(rule.title);
     setCelebration(true);
-    setToast(`GOAL! +${rule.minutes} minuten verdiend!${checkedCount === 4 && activeRules.length === 5 ? " En 10 bonusminuten voor alle 5 doelen!" : ""}`);
+    setToast(`GOAL! +${rule.minutes} minuten verdiend!`);
     window.setTimeout(() => setCelebration(false), 1800);
     window.setTimeout(() => setToast(""), 2600);
   }
@@ -276,8 +279,9 @@ export default function Home() {
             <div className="bedtime-label">🌙 Jouw bedtijd vanavond</div>
             <div className="bedtime-time">{bedtime}</div>
             <div className="bedtime-progress"><span style={{ width: `${maxBonus ? Math.min(100, credited / maxBonus * 100) : 0}%` }} /></div>
-            <div className="bedtime-earned">◷ <b>+ {credited} minuten verdiend!</b></div>{perfectRoundBonus > 0 && <div className="perfect-bonus">🏆 Perfecte ronde: +10 bonusminuten!</div>}
-            <div className="bedtime-foot">Standaard: {baseTime} <span>•</span> Maximaal: {maxTime}</div>{perfectRoundBonus > 0 && <div className="perfect-bonus">🏆 Perfecte ronde: +10 bonusminuten!</div>}
+            <div className="bedtime-earned">◷ <b>+ {credited} minuten verdiend!</b></div>
+            <div className="bedtime-foot">Standaard: {baseTime} <span>•</span> Maximaal: {maxTime}</div>
+            <div className="bedtime-warning">⏰ Bedtijd is het moment waarop je écht in bed ligt. Houd dus tijd over voor tandenpoetsen, lezen en het moment dat mama of papa bij je komt liggen. Is je bedtijd 19:55? Dan moet je dan al klaar zijn — het is geen extra leestijd of extra 5 minuten wachten.</div>}
           </aside>
         </section>
 
@@ -295,6 +299,10 @@ export default function Home() {
               })}
               {activeRules.length === 0 && <p className="empty-state">Papa mag eerst een paar spelregels toevoegen.</p>}
             </div>
+            <div className="bedtime-extras">
+              <div className="section-heading"><div><h2>Extra bedtijdminuten 🌙</h2><p>Elke extra levert 5 minuten op, maximaal tot 20:00.</p></div></div>
+              <div className="extra-check-list">{bedtimeExtras.map(extra => { const isChecked = checked.includes(extra.id); return <button type="button" key={extra.id} className={`extra-check-card ${isChecked ? "completed" : ""}`} onClick={() => toggleRule(extra)} aria-pressed={isChecked}><span className="action-emoji">{extra.emoji}</span><span className="extra-check-copy"><strong>{extra.title}</strong><small>{extra.description}</small><b>+ 5 minuten</b></span><span className="action-check">{isChecked ? "✓" : "+"}</span></button>; })}</div>
+            </div>
           </div>
 
           <aside className="reward-column">
@@ -309,7 +317,7 @@ export default function Home() {
         </section>
       </>}
 
-      {tab === "goals" && <section className="subpage panel"><span className="big-emoji">🏆</span><h1>Mijn goals</h1><p className="muted">Elke dag kun je nieuwe voetbalballen verdienen door goede acties te doen.</p><div className="goal-summary"><b>{checkedCount} / 5</b><span>uitdagingen vandaag gescoord</span><small>Bij alle vijf krijg je 10 bonusminuten!</small></div><div className="big-ball-row">{Array.from({ length: 5 }, (_, i) => <span key={i} className={i < checkedCount ? "earned-ball" : "empty-ball"}>{i < checkedCount ? "⚽" : "◯"}</span>)}</div><h2>De missie</h2><p>Er zijn maximaal vijf uitdagingen per dag. Elke goal levert 10 minuten op. Haal je alle vijf, dan scoor je 10 bonusminuten: samen 60 minuten extra bedtijd!</p><button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
+      {tab === "goals" && <section className="subpage panel"><span className="big-emoji">🏆</span><h1>Mijn goals</h1><p className="muted">Elke dag kun je nieuwe voetbalballen verdienen door goede acties te doen.</p><div className="goal-summary"><b>{checkedCount} / 5</b><span>uitdagingen vandaag gescoord</span><small>Elke van de 5 missies levert 10 minuten op. Geen bonus meer; lezen en bij Tobi liggen leveren elk 5 extra minuten op.</small></div><div className="big-ball-row">{Array.from({ length: 5 }, (_, i) => <span key={i} className={i < checkedCount ? "earned-ball" : "empty-ball"}>{i < checkedCount ? "⚽" : "◯"}</span>)}</div><h2>De missie</h2><p>Er zijn maximaal vijf uitdagingen per dag. Elke missie levert 10 minuten op, dus 50 minuten als je ze alle vijf haalt. Er is geen bonus meer. Met <b>Lezen</b> en <b>Bij Tobi liggen (mama of papa)</b> verdien je elk nog 5 minuten. Zo kun je maximaal 60 minuten verdienen en uiterlijk om 20:00 uur naar bed.</p><button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
 
       {tab === "overview" && <section className="subpage panel"><span className="big-emoji">📋</span><h1>Dagoverzicht</h1><p className="muted">Dit is je score voor vandaag op dit apparaat.</p><div className="overview-stats"><div><span>Verdiende minuten</span><b>+{credited}</b></div><div><span>Bedtijd</span><b>{bedtime}</b></div><div><span>Acties afgevinkt</span><b>{checkedCount}/{activeRules.length}</b></div></div><h2>Jouw acties</h2>{activeRules.map(r => <div className="overview-row" key={r.id}><span>{r.emoji} {r.title}</span><b className={checked.includes(r.id) ? "green-text" : "muted"}>{checked.includes(r.id) ? `✓ +${r.minutes} min` : "Nog te doen"}</b></div>)}<button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
 
