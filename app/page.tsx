@@ -282,7 +282,7 @@ export default function Home() {
             <div className="bedtime-progress"><span style={{ width: `${maxBonus ? Math.min(100, credited / maxBonus * 100) : 0}%` }} /></div>
             <div className="bedtime-earned">◷ <b>+ {credited} minuten verdiend!</b></div>
             <div className="bedtime-foot">Standaard: {baseTime} <span>•</span> Maximaal: {formatTime(effectiveMaxTime)}</div>
-            <div className="bedtime-warning">⏰ Bedtijd is het moment waarop je écht in bed ligt. Houd dus tijd over voor tandenpoetsen, lezen en het moment dat mama of papa bij je komt liggen. Is je bedtijd 19:55? Dan moet je dan al klaar zijn — het is geen extra leestijd of extra 5 minuten wachten.</div>}
+            <div className="bedtime-warning">⏰ Bedtijd is het moment waarop je écht in bed ligt. Houd dus tijd over voor tandenpoetsen, lezen en het moment dat mama of papa bij je komt liggen. Is je bedtijd 19:55? Dan moet je dan al klaar zijn — het is geen extra leestijd of extra 5 minuten wachten.</div>
           </aside>
         </section>
 
