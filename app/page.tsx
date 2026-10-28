@@ -111,11 +111,6 @@ export default function Home() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!loaded) return;
-    localStorage.setItem("tobi-voetbalmissie-v3", JSON.stringify({ rules, checked, checkedDate: todayKey, baseTime, maxTime, history, todayRules: activeRules }));
-  }, [rules, checked, todayKey, baseTime, maxTime, history, loaded]);
-
   const today = new Date();
   const dayNumber = today.getDay();
   const rotationDay = dayNumber >= 1 && dayNumber <= 5 && today.getDate() % 2 === 0;
@@ -132,6 +127,11 @@ export default function Home() {
   const maxBonus = Math.max(0, timeToMinutes(maxTime) - timeToMinutes(baseTime));
   const credited = Math.min(earned, maxBonus);
   const bedtime = formatTime(timeToMinutes(baseTime) + credited);
+
+  useEffect(() => {
+    if (!loaded) return;
+    localStorage.setItem("tobi-voetbalmissie-v3", JSON.stringify({ rules, checked, checkedDate: todayKey, baseTime, maxTime, history, todayRules: activeRules }));
+  }, [rules, checked, todayKey, baseTime, maxTime, history, loaded, activeRules]);
 
   function toggleRule(rule: Rule) {
     if (!rule.active) return;
