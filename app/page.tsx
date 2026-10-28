@@ -163,7 +163,7 @@ export default function Home() {
             const oldChecked: number[] = Array.isArray(data.checked) ? data.checked : [];
             const doneRules = oldRules.filter(rule => oldChecked.includes(rule.id));
             const earnedMinutes = doneRules.reduce((sum, rule) => sum + rule.minutes, 0) + bedtimeExtras.filter(extra => oldChecked.includes(extra.id)).reduce((sum, extra) => sum + extra.minutes, 0);
-            const maxBonus = Math.max(0, timeToMinutes(data.maxTime || "20:00") - timeToMinutes(data.baseTime || "19:00"));
+            const maxBonus = Math.max(0, Math.min(timeToMinutes(data.maxTime || "20:00"), timeToMinutes("20:00")) - timeToMinutes(data.baseTime || "19:00"));
             const log: DailyLog = {
               date: previousDate,
               rules: oldRules,
@@ -212,7 +212,8 @@ export default function Home() {
   const checkedCount = activeRules.filter(r => checked.includes(r.id)).length;
   const baseEarned = useMemo(() => [...activeRules, ...bedtimeExtras].filter(r => checked.includes(r.id)).reduce((sum, r) => sum + r.minutes, 0), [activeRules, checked]);
   const earned = baseEarned;
-  const maxBonus = Math.max(0, timeToMinutes(maxTime) - timeToMinutes(baseTime));
+  const effectiveMaxTime = Math.min(timeToMinutes(maxTime), timeToMinutes("20:00"));
+  const maxBonus = Math.max(0, effectiveMaxTime - timeToMinutes(baseTime));
   const credited = Math.min(earned, maxBonus);
   const bedtime = formatTime(timeToMinutes(baseTime) + credited);
 
@@ -280,7 +281,7 @@ export default function Home() {
             <div className="bedtime-time">{bedtime}</div>
             <div className="bedtime-progress"><span style={{ width: `${maxBonus ? Math.min(100, credited / maxBonus * 100) : 0}%` }} /></div>
             <div className="bedtime-earned">◷ <b>+ {credited} minuten verdiend!</b></div>
-            <div className="bedtime-foot">Standaard: {baseTime} <span>•</span> Maximaal: {maxTime}</div>
+            <div className="bedtime-foot">Standaard: {baseTime} <span>•</span> Maximaal: {formatTime(effectiveMaxTime)}</div>
             <div className="bedtime-warning">⏰ Bedtijd is het moment waarop je écht in bed ligt. Houd dus tijd over voor tandenpoetsen, lezen en het moment dat mama of papa bij je komt liggen. Is je bedtijd 19:55? Dan moet je dan al klaar zijn — het is geen extra leestijd of extra 5 minuten wachten.</div>}
           </aside>
         </section>
