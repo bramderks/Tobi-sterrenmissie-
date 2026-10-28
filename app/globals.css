@@ -19,3 +19,37 @@
 @media(max-width:720px){.extra-check-list{grid-template-columns:1fr}.extra-check-card{padding:11px}.bedtime-warning{font-size:11px}}
 
 .missed-yesterday-card{width:100%;margin:12px 0;border-color:#f1b5c0;background:#fff1f3}.missed-yesterday-card.completed{border-color:#e35d73;background:#ffe2e7}.missed-yesterday-card .extra-check-copy b{color:#bd334b}
+
+
+/* Responsive alignment polish: keep rewards, descriptions and controls in a consistent grid. */
+.action-card{height:100%;min-width:0;display:flex;flex-direction:column}
+.action-card .action-description{width:100%;flex:1 0 auto;overflow-wrap:anywhere}
+.action-card .action-minutes{width:100%;min-height:18px;display:flex;align-items:center;justify-content:center;margin-top:auto;padding-top:10px;line-height:1.25;white-space:normal}
+.action-card .action-check{flex:0 0 auto;margin-top:10px}
+.bedtime-extras{min-width:0}
+.bedtime-extras .section-heading>div{min-width:0;flex-wrap:wrap;align-items:baseline;column-gap:10px;row-gap:4px}
+.bedtime-extras .section-heading p{max-width:100%;line-height:1.45}
+.extra-check-list{align-items:stretch}
+.extra-check-card{height:100%;min-width:0;display:grid;grid-template-columns:34px minmax(0,1fr) 30px;align-items:center;gap:10px}
+.extra-check-copy{min-width:0;padding-right:0;overflow-wrap:anywhere}
+.extra-check-copy strong,.extra-check-copy small,.extra-check-copy b{display:block;max-width:100%;overflow-wrap:anywhere}
+.extra-check-card .action-check{position:static;transform:none;justify-self:end;align-self:center;flex-shrink:0}
+.missed-yesterday-card{margin:12px 0;grid-template-columns:36px minmax(0,1fr) 30px}
+.missed-yesterday-card .extra-check-copy small{line-height:1.4}
+@media(max-width:720px){
+  .action-grid{align-items:stretch}
+  .action-card{height:100%;padding-left:9px;padding-right:9px}
+  .action-card .action-description{min-height:0;flex-grow:1}
+  .action-card .action-minutes{font-size:11px}
+  .bedtime-extras{padding:14px 12px}
+  .bedtime-extras .section-heading{align-items:flex-start}
+  .bedtime-extras .section-heading>div{align-items:flex-start;flex-direction:column}
+  .extra-check-list{grid-template-columns:minmax(0,1fr)}
+  .extra-check-card{grid-template-columns:32px minmax(0,1fr) 30px;padding:12px 10px;gap:9px}
+  .extra-check-copy strong{font-size:12px}
+  .extra-check-copy small{font-size:11px}
+  .missed-yesterday-card{grid-template-columns:34px minmax(0,1fr) 30px}
+}
+@media(min-width:721px) and (max-width:1050px){
+  .extra-check-list{grid-template-columns:minmax(0,1fr)}
+}
