@@ -162,7 +162,7 @@ export default function Home() {
             const oldRules: Rule[] = Array.isArray(data.todayRules) ? data.todayRules : (Array.isArray(data.rules) ? data.rules : initialRules);
             const oldChecked: number[] = Array.isArray(data.checked) ? data.checked : [];
             const doneRules = oldRules.filter(rule => oldChecked.includes(rule.id));
-            const earnedMinutes = doneRules.reduce((sum, rule) => sum + rule.minutes, 0) + bedtimeExtras.filter(extra => oldChecked.includes(extra.id)).reduce((sum, extra) => sum + extra.minutes, 0);
+            const earnedMinutes = Math.max(0, doneRules.reduce((sum, rule) => sum + rule.minutes, 0) + bedtimeExtras.filter(extra => oldChecked.includes(extra.id)).reduce((sum, extra) => sum + extra.minutes, 0) - (oldChecked.includes(103) ? 10 : 0));
             const maxBonus = Math.max(0, Math.min(timeToMinutes(data.maxTime || "20:00"), timeToMinutes("20:00")) - timeToMinutes(data.baseTime || "19:00"));
             const log: DailyLog = {
               date: previousDate,
@@ -211,7 +211,8 @@ export default function Home() {
   }).slice(0, 5);
   const checkedCount = activeRules.filter(r => checked.includes(r.id)).length;
   const baseEarned = useMemo(() => [...activeRules, ...bedtimeExtras].filter(r => checked.includes(r.id)).reduce((sum, r) => sum + r.minutes, 0), [activeRules, checked]);
-  const earned = baseEarned;
+  const missedYesterdayPenalty = checked.includes(103) ? 10 : 0;
+  const earned = Math.max(0, baseEarned - missedYesterdayPenalty);
   const effectiveMaxTime = Math.min(timeToMinutes(maxTime), timeToMinutes("20:00"));
   const maxBonus = Math.max(0, effectiveMaxTime - timeToMinutes(baseTime));
   const credited = Math.min(earned, maxBonus);
@@ -302,6 +303,7 @@ export default function Home() {
             </div>
             <div className="bedtime-extras">
               <div className="section-heading"><div><h2>Extra bedtijdminuten 🌙</h2><p>Elke extra levert 5 minuten op, maximaal tot 20:00.</p></div></div>
+              <button type="button" className={`extra-check-card missed-yesterday-card ${checked.includes(103) ? "completed" : ""}`} onClick={() => { setChecked(old => old.includes(103) ? old.filter(id => id !== 103) : [...old, 103]); setToast(checked.includes(103) ? "De correctie van gisteren is uitgezet." : "😞 Jammer, gisteren hield je je niet aan de bedtijd. Vandaag start je met 10 minuten minder."); }} aria-pressed={checked.includes(103)}><span className="action-emoji">😞</span><span className="extra-check-copy"><strong>Niet nagekomen gisteren</strong><small>Vink dit aan als er gisteren bedtijdstrijd was. Vandaag gaan er 10 minuten af.</small><b>− 10 minuten vandaag</b></span><span className="action-check">{checked.includes(103) ? "✓" : "+"}</span></button>
               <div className="extra-check-list">{bedtimeExtras.map(extra => { const isChecked = checked.includes(extra.id); return <button type="button" key={extra.id} className={`extra-check-card ${isChecked ? "completed" : ""}`} onClick={() => toggleRule(extra)} aria-pressed={isChecked}><span className="action-emoji">{extra.emoji}</span><span className="extra-check-copy"><strong>{extra.title}</strong><small>{extra.description}</small><b>+ 5 minuten</b></span><span className="action-check">{isChecked ? "✓" : "+"}</span></button>; })}</div>
             </div>
           </div>
