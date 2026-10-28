@@ -66,8 +66,26 @@ export default function Home() {
         const remote = await response.json();
         if (cancelled) return;
         if (remote.state) {
-          applySavedData(remote.state);
-          localStorage.setItem("tobi-voetbalmissie-v3", JSON.stringify(remote.state));
+          const saved = localStorage.getItem("tobi-voetbalmissie-v3");
+          let mergedState = remote.state;
+          if (saved) {
+            try {
+              const localData = JSON.parse(saved);
+              const currentKey = `${new Date().getFullYear()}-${new Date().getMonth()+1}-${new Date().getDate()}`;
+              if (localData.checkedDate === currentKey && remote.state.checkedDate === currentKey) {
+                mergedState = {
+                  ...remote.state,
+                  checked: [...new Set([...(Array.isArray(remote.state.checked) ? remote.state.checked : []), ...(Array.isArray(localData.checked) ? localData.checked : [])])],
+                  history: [...new Map([...(Array.isArray(remote.state.history) ? remote.state.history : []), ...(Array.isArray(localData.history) ? localData.history : [])].map((item: DailyLog) => [item.date, item])).values()].sort((a: DailyLog, b: DailyLog) => b.date.localeCompare(a.date)).slice(0, 365)
+                };
+                if (JSON.stringify(mergedState) !== JSON.stringify(remote.state)) {
+                  await fetch("/api/state", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state: mergedState }) });
+                }
+              }
+            } catch { /* Ignore malformed local data; keep the shared copy. */ }
+          }
+          applySavedData(mergedState);
+          localStorage.setItem("tobi-voetbalmissie-v3", JSON.stringify(mergedState));
         } else {
           const saved = localStorage.getItem("tobi-voetbalmissie-v3");
           const localData = saved ? JSON.parse(saved) : {
