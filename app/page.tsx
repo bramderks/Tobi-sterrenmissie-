@@ -16,6 +16,7 @@ const initialRules: Rule[] = [
   { id: 8, title: "Koffie halen in de ochtend", description: "In het weekend 's ochtends koffie halen voor papa en mama.", minutes: 10, emoji: "☕", active: true, days: WEEKEND },
   { id: 9, title: "Ontbijt maken", description: "In het weekend helpen om het ontbijt klaar te maken.", minutes: 10, emoji: "🥣", active: true, days: WEEKEND },
   { id: 10, title: "Goed luisteren tijdens het voetballen", description: "Op zaterdag goed luisteren tijdens het voetballen.", minutes: 10, emoji: "⚽", active: true, days: [6] },
+  { id: 11, title: "Schermvrij spelen", description: "Leg telefoon, tablet en tv weg. Speel met speelgoed, maak een puzzel, bouw LEGO of verzin zelf iets leuks zonder scherm.", minutes: 10, emoji: "🧩", active: true, days: WEEKDAYS },
 ];
 type Tab = "today" | "goals" | "overview";
 
@@ -44,7 +45,7 @@ export default function Home() {
       const saved = localStorage.getItem("tobi-voetbalmissie-v3");
       if (saved) {
         const data = JSON.parse(saved);
-        if (Array.isArray(data.rules) && data.rules.some((r: Rule) => Array.isArray(r.days))) setRules(data.rules);
+        if (Array.isArray(data.rules) && data.rules.some((r: Rule) => Array.isArray(r.days))) { const savedRules = data.rules as Rule[]; setRules([...savedRules, ...initialRules.filter(defaultRule => !savedRules.some(savedRule => savedRule.id === defaultRule.id))]); }
         const d = new Date(); const currentKey = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
         if (data.checkedDate === currentKey && Array.isArray(data.checked)) setChecked(data.checked);
         if (data.baseTime) setBaseTime(data.baseTime);
@@ -59,8 +60,15 @@ export default function Home() {
     localStorage.setItem("tobi-voetbalmissie-v3", JSON.stringify({ rules, checked, checkedDate: todayKey, baseTime, maxTime }));
   }, [rules, checked, todayKey, baseTime, maxTime, loaded]);
 
-  const dayNumber = new Date().getDay();
-  const activeRules = rules.filter(r => r.active && r.days?.includes(dayNumber)).slice(0, 5);
+  const today = new Date();
+  const dayNumber = today.getDay();
+  const rotationDay = dayNumber >= 1 && dayNumber <= 5 && today.getDate() % 2 === 0;
+  const activeRules = rules.filter(r => {
+    if (!r.active || !r.days?.includes(dayNumber)) return false;
+    if (r.title === "Kleine huishoudelijke taken" && rotationDay) return false;
+    if (r.title === "Schermvrij spelen" && !rotationDay) return false;
+    return true;
+  }).slice(0, 5);
   const checkedCount = activeRules.filter(r => checked.includes(r.id)).length;
   const baseEarned = useMemo(() => activeRules.filter(r => checked.includes(r.id)).reduce((sum, r) => sum + r.minutes, 0), [activeRules, checked]);
   const perfectRoundBonus = activeRules.length === 5 && checkedCount === 5 ? 10 : 0;
