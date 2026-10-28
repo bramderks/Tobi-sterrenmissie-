@@ -18,7 +18,8 @@ const initialRules: Rule[] = [
   { id: 10, title: "Goed luisteren tijdens het voetballen", description: "Op zaterdag goed luisteren tijdens het voetballen.", minutes: 10, emoji: "⚽", active: true, days: [6] },
   { id: 11, title: "Schermvrij spelen", description: "Leg telefoon, tablet en tv weg. Speel met speelgoed, maak een puzzel, bouw LEGO of verzin zelf iets leuks zonder scherm.", minutes: 10, emoji: "🧩", active: true, days: WEEKDAYS },
 ];
-type Tab = "today" | "goals" | "overview";
+type DailyLog = { date: string; rules: Rule[]; checked: number[]; earnedMinutes: number; completedCount: number; totalCount: number; bedtime: string };
+type Tab = "today" | "goals" | "overview" | "logbook";
 
 function timeToMinutes(time: string) { const [h, m] = time.split(":").map(Number); return h * 60 + m; }
 function formatTime(minutes: number) { const m = ((minutes % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; }
@@ -27,6 +28,7 @@ export default function Home() {
   const [rules, setRules] = useState<Rule[]>(initialRules);
   const [todayKey, setTodayKey] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; });
   const [checked, setChecked] = useState<number[]>([]);
+  const [history, setHistory] = useState<DailyLog[]>([]);
   const [baseTime, setBaseTime] = useState("19:00");
   const [maxTime, setMaxTime] = useState("20:00");
   const [parentOpen, setParentOpen] = useState(false);
@@ -47,7 +49,7 @@ export default function Home() {
         const data = JSON.parse(saved);
         if (Array.isArray(data.rules) && data.rules.some((r: Rule) => Array.isArray(r.days))) { const savedRules = data.rules as Rule[]; setRules([...savedRules, ...initialRules.filter(defaultRule => !savedRules.some(savedRule => savedRule.id === defaultRule.id))]); }
         const d = new Date(); const currentKey = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
-        if (data.checkedDate === currentKey && Array.isArray(data.checked)) setChecked(data.checked);
+        if (Array.isArray(data.history)) setHistory(data.history as DailyLog[]);\n        if (data.checkedDate === currentKey && Array.isArray(data.checked)) setChecked(data.checked);
         if (data.baseTime) setBaseTime(data.baseTime);
         if (data.maxTime) setMaxTime(data.maxTime);
       }
@@ -55,11 +57,39 @@ export default function Home() {
     setLoaded(true);
   }, []);
 
-  // Reset daily progress at midnight in the device's local time zone.
+  // At midnight, archive the finished day and start fresh for the new date.
   useEffect(() => {
     const refreshDay = () => {
-      const d = new Date();
-      const currentKey = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+      const now = new Date();
+      const currentKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+      const savedRaw = localStorage.getItem("tobi-voetbalmissie-v3");
+      if (savedRaw) {
+        try {
+          const data = JSON.parse(savedRaw);
+          const previousDate = data.checkedDate as string | undefined;
+          if (previousDate && previousDate !== currentKey) {
+            const oldHistory: DailyLog[] = Array.isArray(data.history) ? data.history : [];
+            const archived = new Set(oldHistory.map(log => log.date));
+            const oldRules: Rule[] = Array.isArray(data.todayRules) ? data.todayRules : (Array.isArray(data.rules) ? data.rules : initialRules);
+            const oldChecked: number[] = Array.isArray(data.checked) ? data.checked : [];
+            const doneRules = oldRules.filter(rule => oldChecked.includes(rule.id));
+            const earnedMinutes = doneRules.reduce((sum, rule) => sum + rule.minutes, 0) + (oldRules.length === 5 && oldChecked.filter(id => oldRules.some(rule => rule.id === id)).length === 5 ? 10 : 0);
+            const maxBonus = Math.max(0, timeToMinutes(data.maxTime || "20:00") - timeToMinutes(data.baseTime || "19:00"));
+            const log: DailyLog = {
+              date: previousDate,
+              rules: oldRules,
+              checked: oldChecked,
+              earnedMinutes: Math.min(earnedMinutes, maxBonus),
+              completedCount: doneRules.length,
+              totalCount: oldRules.length,
+              bedtime: formatTime(timeToMinutes(data.baseTime || "19:00") + Math.min(earnedMinutes, maxBonus))
+            };
+            const updatedHistory = [...oldHistory.filter(item => item.date !== previousDate), log].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 365);
+            localStorage.setItem("tobi-voetbalmissie-v3", JSON.stringify({ ...data, history: updatedHistory }));
+            setHistory(updatedHistory);
+          }
+        } catch { /* Preserve the app if older saved data cannot be archived. */ }
+      }
       setTodayKey(previousKey => {
         if (previousKey !== currentKey) {
           setChecked([]);
@@ -83,8 +113,8 @@ export default function Home() {
 
   useEffect(() => {
     if (!loaded) return;
-    localStorage.setItem("tobi-voetbalmissie-v3", JSON.stringify({ rules, checked, checkedDate: todayKey, baseTime, maxTime }));
-  }, [rules, checked, todayKey, baseTime, maxTime, loaded]);
+    localStorage.setItem("tobi-voetbalmissie-v3", JSON.stringify({ rules, checked, checkedDate: todayKey, baseTime, maxTime, history, todayRules: activeRules }));
+  }, [rules, checked, todayKey, baseTime, maxTime, history, loaded]);
 
   const today = new Date();
   const dayNumber = today.getDay();
@@ -141,7 +171,7 @@ export default function Home() {
         <nav className="main-nav" aria-label="Hoofdnavigatie">
           <button className={tab === "today" ? "nav-item selected" : "nav-item"} onClick={() => setTab("today")}>⌂ <span>Vandaag</span></button>
           <button className={tab === "goals" ? "nav-item selected" : "nav-item"} onClick={() => setTab("goals")}>🏆 <span>Mijn goals</span></button>
-          <button className={tab === "overview" ? "nav-item selected" : "nav-item"} onClick={() => setTab("overview")}>▥ <span>Overzicht</span></button>
+          <button className={tab === "overview" ? "nav-item selected" : "nav-item"} onClick={() => setTab("overview")}>▥ <span>Overzicht</span></button>\n          <button className={tab === "logbook" ? "nav-item selected" : "nav-item"} onClick={() => setTab("logbook")}>📖 <span>Logboek</span></button>
         </nav>
         <button className="parent-button" onClick={openParent}>⚙ <span>Ouderinstellingen</span></button>
       </header>
@@ -197,6 +227,8 @@ export default function Home() {
       {tab === "goals" && <section className="subpage panel"><span className="big-emoji">🏆</span><h1>Mijn goals</h1><p className="muted">Elke dag kun je nieuwe voetbalballen verdienen door goede acties te doen.</p><div className="goal-summary"><b>{checkedCount} / 5</b><span>uitdagingen vandaag gescoord</span><small>Bij alle vijf krijg je 10 bonusminuten!</small></div><div className="big-ball-row">{Array.from({ length: 5 }, (_, i) => <span key={i} className={i < checkedCount ? "earned-ball" : "empty-ball"}>{i < checkedCount ? "⚽" : "◯"}</span>)}</div><h2>De missie</h2><p>Er zijn maximaal vijf uitdagingen per dag. Elke goal levert 10 minuten op. Haal je alle vijf, dan scoor je 10 bonusminuten: samen 60 minuten extra bedtijd!</p><button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
 
       {tab === "overview" && <section className="subpage panel"><span className="big-emoji">📋</span><h1>Dagoverzicht</h1><p className="muted">Dit is je score voor vandaag op dit apparaat.</p><div className="overview-stats"><div><span>Verdiende minuten</span><b>+{credited}</b></div><div><span>Bedtijd</span><b>{bedtime}</b></div><div><span>Acties afgevinkt</span><b>{checkedCount}/{activeRules.length}</b></div></div><h2>Jouw acties</h2>{activeRules.map(r => <div className="overview-row" key={r.id}><span>{r.emoji} {r.title}</span><b className={checked.includes(r.id) ? "green-text" : "muted"}>{checked.includes(r.id) ? `✓ +${r.minutes} min` : "Nog te doen"}</b></div>)}<button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
+
+      {tab === "logbook" && <section className="subpage panel"><span className="big-emoji">📖</span><h1>Dagboek van Tobi</h1><p className="muted">Afgesloten dagen met de uitdagingen die golden, de goals die je haalde en je verdiende minuten. Een dag wordt automatisch afgesloten om 00:00 uur.</p>{history.length === 0 ? <p className="empty-state">Er zijn nog geen afgesloten dagen. Je eerste dag verschijnt hier na middernacht.</p> : <div className="logbook-list">{history.map(log => <article className="overview-row" key={log.date} style={{ display: "block", padding: "14px 0" }}><div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><strong>{log.date}</strong><b className="green-text">+{log.earnedMinutes} minuten · {log.completedCount}/{log.totalCount} goals</b></div><p className="muted">Berekende bedtijd: {log.bedtime}</p>{log.rules.map(rule => <div key={rule.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 5 }}><span>{rule.emoji} {rule.title}</span><span>{log.checked.includes(rule.id) ? `✓ +${rule.minutes} min` : "Niet behaald"}</span></div>)}</article>)}</div>}<button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
 
       <footer className="footer-note"><span>⚽</span> Kleine goede daden maken grote doelpunten <span>⚽</span></footer>
 
