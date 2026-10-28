@@ -42,21 +42,87 @@ export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [toast, setToast] = useState("");
 
+  const [remoteHydrated, setRemoteHydrated] = useState(false);
+
+  function applySavedData(data: any) {
+    if (Array.isArray(data.rules) && data.rules.some((r: Rule) => Array.isArray(r.days))) {
+      const savedRules = data.rules as Rule[];
+      setRules([...savedRules, ...initialRules.filter(defaultRule => !savedRules.some(savedRule => savedRule.id === defaultRule.id))]);
+    }
+    const d = new Date();
+    const currentKey = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+    if (Array.isArray(data.history)) setHistory(data.history as DailyLog[]);
+    if (data.checkedDate === currentKey && Array.isArray(data.checked)) setChecked(data.checked);
+    if (data.baseTime) setBaseTime(data.baseTime);
+    if (data.maxTime) setMaxTime(data.maxTime);
+  }
+
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("tobi-voetbalmissie-v3");
-      if (saved) {
-        const data = JSON.parse(saved);
-        if (Array.isArray(data.rules) && data.rules.some((r: Rule) => Array.isArray(r.days))) { const savedRules = data.rules as Rule[]; setRules([...savedRules, ...initialRules.filter(defaultRule => !savedRules.some(savedRule => savedRule.id === defaultRule.id))]); }
-        const d = new Date(); const currentKey = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
-        if (Array.isArray(data.history)) setHistory(data.history as DailyLog[]);
-        if (data.checkedDate === currentKey && Array.isArray(data.checked)) setChecked(data.checked);
-        if (data.baseTime) setBaseTime(data.baseTime);
-        if (data.maxTime) setMaxTime(data.maxTime);
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch("/api/state", { cache: "no-store" });
+        if (!response.ok) throw new Error("Shared storage unavailable");
+        const remote = await response.json();
+        if (cancelled) return;
+        if (remote.state) {
+          applySavedData(remote.state);
+          localStorage.setItem("tobi-voetbalmissie-v3", JSON.stringify(remote.state));
+        } else {
+          const saved = localStorage.getItem("tobi-voetbalmissie-v3");
+          const localData = saved ? JSON.parse(saved) : {
+            rules: initialRules, checked: [], checkedDate: todayKey, baseTime: "19:00", maxTime: "20:00", history: [], todayRules: initialRules
+          };
+          if (saved) applySavedData(localData);
+          const init = await fetch("/api/state", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state: localData, initialize: true }) });
+          if (!init.ok) throw new Error("Could not initialize shared storage");
+        }
+      } catch (error) {
+        console.error("Shared state unavailable; using this device's saved data", error);
+        try {
+          const saved = localStorage.getItem("tobi-voetbalmissie-v3");
+          if (saved) applySavedData(JSON.parse(saved));
+        } catch { /* Use default state when local data is unavailable. */ }
+      } finally {
+        if (!cancelled) { setLoaded(true); setRemoteHydrated(true); }
       }
-    } catch { /* Start with the default setup if saved data is unavailable. */ }
-    setLoaded(true);
+    })();
+    return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (!loaded || !remoteHydrated) return;
+    const state = { rules, checked, checkedDate: todayKey, baseTime, maxTime, history, todayRules: activeRules };
+    localStorage.setItem("tobi-voetbalmissie-v3", JSON.stringify(state));
+    const timeout = window.setTimeout(() => {
+      fetch("/api/state", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state }) })
+        .then(response => { if (!response.ok) throw new Error("Opslaan mislukt"); })
+        .catch(error => { console.error("Shared save failed", error); setToast("Let op: synchroniseren is tijdelijk niet gelukt."); });
+    }, 350);
+    return () => window.clearTimeout(timeout);
+  }, [rules, checked, todayKey, baseTime, maxTime, history, loaded, remoteHydrated, activeRules]);
+
+  useEffect(() => {
+    if (!loaded || !remoteHydrated) return;
+    const syncFromServer = async () => {
+      try {
+        const response = await fetch("/api/state", { cache: "no-store" });
+        if (!response.ok) return;
+        const remote = await response.json();
+        if (!remote.state) return;
+        const current = { rules, checked, checkedDate: todayKey, baseTime, maxTime, history, todayRules: activeRules };
+        if (JSON.stringify(remote.state) === JSON.stringify(current)) return;
+        const d = new Date();
+        const currentKey = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+        if (remote.state.checkedDate !== currentKey) return;
+        applySavedData(remote.state);
+        localStorage.setItem("tobi-voetbalmissie-v3", JSON.stringify(remote.state));
+      } catch (error) { console.error("Shared refresh failed", error); }
+    };
+    const interval = window.setInterval(syncFromServer, 5000);
+    window.addEventListener("focus", syncFromServer);
+    return () => { window.clearInterval(interval); window.removeEventListener("focus", syncFromServer); };
+  }, [loaded, remoteHydrated, rules, checked, todayKey, baseTime, maxTime, history, activeRules]);
 
   // At midnight, archive the finished day and start fresh for the new date.
   useEffect(() => {
