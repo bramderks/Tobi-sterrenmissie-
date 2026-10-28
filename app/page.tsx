@@ -181,7 +181,7 @@ export default function Home() {
           <div className="hero-art">
             <div className="stadium-lights">✦ ✧ ✦ ✧ ✦</div>
             <div className="speech-bubble">Elke goede actie<br />is een doelpunt! 💪</div>
-            <div className="hero-player" aria-hidden="true">🧒🏻</div>
+            <div className="hero-player" aria-hidden="true"><img src="/tobi-avatar.svg" alt="" /></div>
             <div className="kick-ball" aria-hidden="true">⚽</div>
             <div className="goal-burst" aria-hidden="true">GOAL! <span>★</span></div>
             <div className="pitch-lines" />
@@ -230,7 +230,7 @@ export default function Home() {
 
       {tab === "logbook" && <section className="subpage panel"><span className="big-emoji">📖</span><h1>Dagboek van Tobi</h1><p className="muted">Afgesloten dagen met de uitdagingen die golden, de goals die je haalde en je verdiende minuten. Een dag wordt automatisch afgesloten om 00:00 uur.</p>{history.length === 0 ? <p className="empty-state">Er zijn nog geen afgesloten dagen. Je eerste dag verschijnt hier na middernacht.</p> : <div className="logbook-list">{history.map(log => <article className="overview-row" key={log.date} style={{ display: "block", padding: "14px 0" }}><div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><strong>{log.date}</strong><b className="green-text">+{log.earnedMinutes} minuten · {log.completedCount}/{log.totalCount} goals</b></div><p className="muted">Berekende bedtijd: {log.bedtime}</p>{log.rules.map(rule => <div key={rule.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 5 }}><span>{rule.emoji} {rule.title}</span><span>{log.checked.includes(rule.id) ? `✓ +${rule.minutes} min` : "Niet behaald"}</span></div>)}</article>)}</div>}<button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
 
-      <footer className="footer-note"><span>⚽</span> Kleine goede daden maken grote doelpunten <span>⚽</span></footer>
+      <footer className="footer-note"><span>⚽</span> Kleine goede daden maken grote doelpunten <span>⚽</span><small>© Iselto</small></footer>
 
       {toast && <div className="toast" role="status">{toast}</div>}
       {celebration && <div className="celebration-layer" aria-live="polite"><div className="celebration-card"><div className="celebration-ball">⚽</div><div className="celebration-word">GOOOOAL!</div><h2>TOP GESCOORD, TOBI!</h2><p>{lastScored}</p><strong>+ extra bedtijd verdiend!</strong><div className="confetti-rain">🎉 ✨ 🎊 ⚽ ✨ 🎉</div></div></div>}
