@@ -49,7 +49,8 @@ export default function Home() {
         const data = JSON.parse(saved);
         if (Array.isArray(data.rules) && data.rules.some((r: Rule) => Array.isArray(r.days))) { const savedRules = data.rules as Rule[]; setRules([...savedRules, ...initialRules.filter(defaultRule => !savedRules.some(savedRule => savedRule.id === defaultRule.id))]); }
         const d = new Date(); const currentKey = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
-        if (Array.isArray(data.history)) setHistory(data.history as DailyLog[]);\n        if (data.checkedDate === currentKey && Array.isArray(data.checked)) setChecked(data.checked);
+        if (Array.isArray(data.history)) setHistory(data.history as DailyLog[]);
+        if (data.checkedDate === currentKey && Array.isArray(data.checked)) setChecked(data.checked);
         if (data.baseTime) setBaseTime(data.baseTime);
         if (data.maxTime) setMaxTime(data.maxTime);
       }
