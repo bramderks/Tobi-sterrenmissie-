@@ -2,13 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Rule = { id: number; title: string; minutes: number; emoji: string; active: boolean };
+type Rule = { id: number; title: string; description: string; minutes: number; emoji: string; active: boolean; days: number[] };
+const WEEKDAYS = [1, 2, 3, 4, 5];
+const WEEKEND = [0, 6];
 const initialRules: Rule[] = [
-  { id: 1, title: "Goed geluisterd naar papa en mama", minutes: 10, emoji: "👂", active: true },
-  { id: 2, title: "Niet op het bord gestaan op school", minutes: 10, emoji: "🏫", active: true },
-  { id: 3, title: "Goed geholpen thuis", minutes: 10, emoji: "🤝", active: true },
-  { id: 4, title: "Netjes mijn spullen opgeruimd", minutes: 10, emoji: "🧹", active: true },
-  { id: 5, title: "Goed mijn best gedaan met voetbal", minutes: 10, emoji: "⚽", active: true },
+  { id: 1, title: "Geen straf op school", description: "Iedere schooldag: goed gedrag op school en geen straf.", minutes: 10, emoji: "🏫", active: true, days: WEEKDAYS },
+  { id: 2, title: "Ochtendroutine", description: "Opstaan, tanden poetsen, aankleden, ontbijten en goed meewerken.", minutes: 10, emoji: "🌞", active: true, days: WEEKDAYS },
+  { id: 3, title: "Avondroutine", description: "Spullen opruimen, tafel afruimen, bord leeg eten en goed meewerken.", minutes: 10, emoji: "🌙", active: true, days: [0, 1, 2, 3, 4, 5, 6] },
+  { id: 4, title: "Goed luisteren", description: "Goed luisteren naar papa, mama en andere volwassenen.", minutes: 10, emoji: "👂", active: true, days: WEEKDAYS },
+  { id: 5, title: "Kleine huishoudelijke taken", description: "Een kleine taak thuis doen zonder gedoe en goed meewerken.", minutes: 10, emoji: "🧹", active: true, days: [1, 2, 4] },
+  { id: 6, title: "Goed luisteren bij voetbaltraining", description: "Op woensdag en vrijdag goed luisteren naar de trainer en je best doen.", minutes: 10, emoji: "⚽", active: true, days: [3, 5] },
+  { id: 7, title: "Kamer opruimen", description: "In het weekend je kamer netjes opruimen.", minutes: 10, emoji: "🧸", active: true, days: WEEKEND },
+  { id: 8, title: "Koffie halen in de ochtend", description: "In het weekend 's ochtends koffie halen voor papa en mama.", minutes: 10, emoji: "☕", active: true, days: WEEKEND },
+  { id: 9, title: "Ontbijt maken", description: "In het weekend helpen om het ontbijt klaar te maken.", minutes: 10, emoji: "🥣", active: true, days: WEEKEND },
+  { id: 10, title: "Goed luisteren tijdens het voetballen", description: "Op zaterdag goed luisteren tijdens het voetballen.", minutes: 10, emoji: "⚽", active: true, days: [6] },
 ];
 type Tab = "today" | "goals" | "overview";
 
@@ -17,6 +24,7 @@ function formatTime(minutes: number) { const m = ((minutes % 1440) + 1440) % 144
 
 export default function Home() {
   const [rules, setRules] = useState<Rule[]>(initialRules);
+  const [todayKey, setTodayKey] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; });
   const [checked, setChecked] = useState<number[]>([]);
   const [baseTime, setBaseTime] = useState("19:00");
   const [maxTime, setMaxTime] = useState("20:00");
@@ -33,11 +41,12 @@ export default function Home() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("tobi-voetbalmissie-v2");
+      const saved = localStorage.getItem("tobi-voetbalmissie-v3");
       if (saved) {
         const data = JSON.parse(saved);
-        if (Array.isArray(data.rules)) setRules(data.rules);
-        if (Array.isArray(data.checked)) setChecked(data.checked);
+        if (Array.isArray(data.rules) && data.rules.some((r: Rule) => Array.isArray(r.days))) setRules(data.rules);
+        const d = new Date(); const currentKey = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+        if (data.checkedDate === currentKey && Array.isArray(data.checked)) setChecked(data.checked);
         if (data.baseTime) setBaseTime(data.baseTime);
         if (data.maxTime) setMaxTime(data.maxTime);
       }
@@ -47,10 +56,11 @@ export default function Home() {
 
   useEffect(() => {
     if (!loaded) return;
-    localStorage.setItem("tobi-voetbalmissie-v2", JSON.stringify({ rules, checked, baseTime, maxTime }));
-  }, [rules, checked, baseTime, maxTime, loaded]);
+    localStorage.setItem("tobi-voetbalmissie-v3", JSON.stringify({ rules, checked, checkedDate: todayKey, baseTime, maxTime }));
+  }, [rules, checked, todayKey, baseTime, maxTime, loaded]);
 
-  const activeRules = rules.filter(r => r.active).slice(0, 5);
+  const dayNumber = new Date().getDay();
+  const activeRules = rules.filter(r => r.active && r.days?.includes(dayNumber)).slice(0, 5);
   const checkedCount = activeRules.filter(r => checked.includes(r.id)).length;
   const baseEarned = useMemo(() => activeRules.filter(r => checked.includes(r.id)).reduce((sum, r) => sum + r.minutes, 0), [activeRules, checked]);
   const perfectRoundBonus = activeRules.length === 5 && checkedCount === 5 ? 10 : 0;
@@ -81,8 +91,8 @@ export default function Home() {
 
   function addRule() {
     if (!newTitle.trim()) return;
-    if (rules.length >= 5) { setToast("Je kunt maximaal 5 uitdagingen instellen."); return; }
-    setRules(old => [...old, { id: Math.max(0, ...old.map(r => r.id)) + 1, title: newTitle.trim(), minutes: 10, emoji: "⚽", active: true }]);
+    if (rules.length >= 15) { setToast("Je kunt maximaal 15 uitdagingen instellen in totaal."); return; }
+    setRules(old => [...old, { id: Math.max(0, ...old.map(r => r.id)) + 1, title: newTitle.trim(), description: newTitle.trim(), minutes: 10, emoji: "⚽", active: true, days: [0,1,2,3,4,5,6] }]);
     setNewTitle("");
     setNewMinutes(10);
     setToast("Nieuwe spelregel toegevoegd!");
@@ -129,7 +139,7 @@ export default function Home() {
               {activeRules.map((rule, index) => {
                 const isChecked = checked.includes(rule.id);
                 return <button key={rule.id} className={`action-card ${isChecked ? "completed" : ""} ${celebration && lastScored === rule.title ? "scoring" : ""}`} onClick={() => toggleRule(rule)} style={{ animationDelay: `${index * 65}ms` }}>
-                  <span className="action-emoji">{rule.emoji}</span><strong>{rule.title}</strong><span className="action-minutes">◷ + {rule.minutes} minuten</span>
+                  <span className="action-emoji">{rule.emoji}</span><strong>{rule.title}</strong><span className="action-description">{rule.description}</span><span className="action-minutes">◷ + {rule.minutes} minuten</span>
                   <span className="action-check">{isChecked ? "✓" : "+"}</span>
                   {isChecked && <span className="mini-confetti">✦</span>}
                 </button>;
@@ -141,8 +151,8 @@ export default function Home() {
           <aside className="reward-column">
             <div className="balls-card panel">
               <div className="section-heading compact"><h2>Mijn voetbalballen</h2><span className="score-pill">{checkedCount}</span></div>
-              <p className="muted">Maximaal 5 uitdagingen per dag • 10 minuten per goal</p>
-              <div className="ball-tray">{Array.from({ length: Math.max(7, activeRules.length) }, (_, i) => <span key={i} className={i < checkedCount ? "earned-ball" : "empty-ball"}>{i < checkedCount ? "⚽" : "◯"}</span>)}</div>
+              <p className="muted">{`Vandaag: ${["zondag","maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag"][dayNumber]}`} • Maximaal 5 uitdagingen • 10 minuten per goal</p>
+              <div className="ball-tray">{Array.from({ length: 5 }, (_, i) => <span key={i} className={i < checkedCount ? "earned-ball" : "empty-ball"}>{i < checkedCount ? "⚽" : "◯"}</span>)}</div>
               <div className="reward-message"><div className="training-kid">🏃🏻‍♂️⚽</div><div><b>{checkedCount >= 5 ? "Wat een kampioen!" : checkedCount >= 3 ? "Je bent lekker bezig!" : "Op naar de volgende goal!"}</b><p>{Math.max(0, 5 - checkedCount)} {Math.max(0, 5 - checkedCount) === 1 ? "bal" : "ballen"} tot jouw mini-overwinning.</p></div></div>
             </div>
             <div className="pep-talk panel"><span className="trophy">🏆</span><div><b>Jij kunt dit, Tobi!</b><p>“Kleine goede daden maken grote doelpunten.”</p></div><span className="pep-ball">⚽</span></div>
@@ -150,7 +160,7 @@ export default function Home() {
         </section>
       </>}
 
-      {tab === "goals" && <section className="subpage panel"><span className="big-emoji">🏆</span><h1>Mijn goals</h1><p className="muted">Elke dag kun je nieuwe voetbalballen verdienen door goede acties te doen.</p><div className="goal-summary"><b>{checkedCount} / 5</b><span>uitdagingen vandaag gescoord</span><small>Bij alle vijf krijg je 10 bonusminuten!</small></div><div className="big-ball-row">{Array.from({ length: Math.max(5, activeRules.length) }, (_, i) => <span key={i} className={i < checkedCount ? "earned-ball" : "empty-ball"}>{i < checkedCount ? "⚽" : "◯"}</span>)}</div><h2>De missie</h2><p>Er zijn maximaal vijf uitdagingen per dag. Elke goal levert 10 minuten op. Haal je alle vijf, dan scoor je 10 bonusminuten: samen 60 minuten extra bedtijd!</p><button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
+      {tab === "goals" && <section className="subpage panel"><span className="big-emoji">🏆</span><h1>Mijn goals</h1><p className="muted">Elke dag kun je nieuwe voetbalballen verdienen door goede acties te doen.</p><div className="goal-summary"><b>{checkedCount} / 5</b><span>uitdagingen vandaag gescoord</span><small>Bij alle vijf krijg je 10 bonusminuten!</small></div><div className="big-ball-row">{Array.from({ length: 5 }, (_, i) => <span key={i} className={i < checkedCount ? "earned-ball" : "empty-ball"}>{i < checkedCount ? "⚽" : "◯"}</span>)}</div><h2>De missie</h2><p>Er zijn maximaal vijf uitdagingen per dag. Elke goal levert 10 minuten op. Haal je alle vijf, dan scoor je 10 bonusminuten: samen 60 minuten extra bedtijd!</p><button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
 
       {tab === "overview" && <section className="subpage panel"><span className="big-emoji">📋</span><h1>Dagoverzicht</h1><p className="muted">Dit is je score voor vandaag op dit apparaat.</p><div className="overview-stats"><div><span>Verdiende minuten</span><b>+{credited}</b></div><div><span>Bedtijd</span><b>{bedtime}</b></div><div><span>Acties afgevinkt</span><b>{checkedCount}/{activeRules.length}</b></div></div><h2>Jouw acties</h2>{activeRules.map(r => <div className="overview-row" key={r.id}><span>{r.emoji} {r.title}</span><b className={checked.includes(r.id) ? "green-text" : "muted"}>{checked.includes(r.id) ? `✓ +${r.minutes} min` : "Nog te doen"}</b></div>)}<button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
 
@@ -161,7 +171,7 @@ export default function Home() {
 
       {codeEntry && <div className="modal-backdrop"><div className="parent-modal panel"><button className="modal-close" onClick={() => setCodeEntry(false)}>×</button><span className="big-emoji">🔐</span><h2>Ouderinstellingen</h2><p className="muted">Voer de oudercode in om de regels te beheren.</p><form onSubmit={e => { e.preventDefault(); if (parentCode === "2019") { setParentOpen(true); setCodeEntry(false); setParentCode(""); } else { setToast("Dat is niet de juiste code. Probeer opnieuw."); } }}><input aria-label="Oudercode" type="password" inputMode="numeric" value={parentCode} onChange={e => setParentCode(e.target.value)} placeholder="Oudercode" autoFocus /><button className="primary-button" type="submit">Ontgrendelen</button></form><small>Startcode demo: 2019. Verander deze in de echte, beveiligde versie.</small></div></div>}
 
-      {parentOpen && <div className="modal-backdrop"><div className="parent-modal settings-modal panel"><button className="modal-close" onClick={() => setParentOpen(false)}>×</button><span className="big-emoji">⚙️</span><h2>Spelregels van papa</h2><p className="muted">Pas de bedtijd en de beloningen aan.</p><div className="settings-fields"><label>Standaard bedtijd<select value={baseTime} onChange={e => setBaseTime(e.target.value)}><option>18:30</option><option>19:00</option><option>19:30</option><option>20:00</option></select></label><label>Uiterste bedtijd<select value={maxTime} onChange={e => setMaxTime(e.target.value)}><option>19:30</option><option>20:00</option></select></label></div><h3>Actieve spelregels</h3><div className="rule-editor">{rules.map(r => <div className="rule-editor-row" key={r.id}><label className="rule-toggle"><input type="checkbox" checked={r.active} onChange={e => setRules(old => old.map(x => x.id === r.id ? { ...x, active: e.target.checked } : x))}/><span>{r.emoji} {r.title}</span></label><div className="minute-stepper"><button onClick={() => setRules(old => old.map(x => x.id === r.id ? { ...x, minutes: Math.max(0, x.minutes - 5) } : x))} aria-label="Vijf minuten minder">−</button><b>{r.minutes} min</b><button onClick={() => setRules(old => old.map(x => x.id === r.id ? { ...x, minutes: Math.min(60, x.minutes + 5) } : x))} aria-label="Vijf minuten meer">+</button></div><button className="delete-rule" onClick={() => { setRules(old => old.filter(x => x.id !== r.id)); setChecked(old => old.filter(id => id !== r.id)); }} aria-label={`Verwijder ${r.title}`}>×</button></div>)}</div><h3>Nieuwe uitdaging ({rules.length}/5)</h3>{rules.length < 5 ? <form className="add-rule-form" onSubmit={e => { e.preventDefault(); addRule(); }}><input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Bijv. vriendelijk tegen iedereen" aria-label="Naam nieuwe spelregel"/><select value={newMinutes} onChange={e => setNewMinutes(Number(e.target.value))} aria-label="Minuten"><option value={10}>10 min</option></select><button className="primary-button" type="submit">Toevoegen +</button></form> : <p className="settings-warning">Je hebt alle 5 uitdagingen ingesteld. Verwijder eerst een regel om een andere toe te voegen.</p>}<button className="save-button" onClick={() => { setParentOpen(false); setToast("Instellingen opgeslagen op dit apparaat."); }}>Opslaan en sluiten ✓</button><p className="settings-warning">Demo-opslag is lokaal op dit apparaat. De productieversie heeft een echte ouderlogin en gedeelde database nodig.</p></div></div>}
+      {parentOpen && <div className="modal-backdrop"><div className="parent-modal settings-modal panel"><button className="modal-close" onClick={() => setParentOpen(false)}>×</button><span className="big-emoji">⚙️</span><h2>Spelregels van papa</h2><p className="muted">Pas de bedtijd en de beloningen aan.</p><div className="settings-fields"><label>Standaard bedtijd<select value={baseTime} onChange={e => setBaseTime(e.target.value)}><option>18:30</option><option>19:00</option><option>19:30</option><option>20:00</option></select></label><label>Uiterste bedtijd<select value={maxTime} onChange={e => setMaxTime(e.target.value)}><option>19:30</option><option>20:00</option></select></label></div><h3>Uitdagingen per dag</h3><p className="settings-warning">De app kiest automatisch maximaal vijf uitdagingen voor vandaag. Zet een regel uit om die niet meer op de ingeplande dagen te tonen.</p><div className="rule-editor">{rules.map(r => <div className="rule-editor-row" key={r.id}><label className="rule-toggle"><input type="checkbox" checked={r.active} onChange={e => setRules(old => old.map(x => x.id === r.id ? { ...x, active: e.target.checked } : x))}/><span>{r.emoji} <b>{r.title}</b><small>{r.description} · {r.days.map(d => ["zo","ma","di","wo","do","vr","za"][d]).join(", ")}</small></span></label><div className="minute-stepper"><b>{r.minutes} min</b></div><button className="delete-rule" onClick={() => { setRules(old => old.filter(x => x.id !== r.id)); setChecked(old => old.filter(id => id !== r.id)); }} aria-label={`Verwijder ${r.title}`}>×</button></div>)}</div><h3>Nieuwe uitdaging ({rules.length}/15)</h3>{rules.length < 15 ? <form className="add-rule-form" onSubmit={e => { e.preventDefault(); addRule(); }}><input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Bijv. vriendelijk tegen iedereen" aria-label="Naam nieuwe spelregel"/><select value={newMinutes} onChange={e => setNewMinutes(Number(e.target.value))} aria-label="Minuten"><option value={10}>10 min</option></select><button className="primary-button" type="submit">Toevoegen +</button></form> : <p className="settings-warning">Je hebt alle 15 uitdagingen ingesteld. Verwijder eerst een regel om een andere toe te voegen.</p>}<button className="save-button" onClick={() => { setParentOpen(false); setToast("Instellingen opgeslagen op dit apparaat."); }}>Opslaan en sluiten ✓</button><p className="settings-warning">Demo-opslag is lokaal op dit apparaat. De productieversie heeft een echte ouderlogin en gedeelde database nodig.</p></div></div>}
     </main>
   );
 }
