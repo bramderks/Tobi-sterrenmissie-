@@ -55,6 +55,32 @@ export default function Home() {
     setLoaded(true);
   }, []);
 
+  // Reset daily progress at midnight in the device's local time zone.
+  useEffect(() => {
+    const refreshDay = () => {
+      const d = new Date();
+      const currentKey = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+      setTodayKey(previousKey => {
+        if (previousKey !== currentKey) {
+          setChecked([]);
+          setCelebration(false);
+          setToast("Een nieuwe dag begint! Je uitdagingen zijn weer klaar.");
+          return currentKey;
+        }
+        return previousKey;
+      });
+    };
+    refreshDay();
+    const intervalId = window.setInterval(refreshDay, 15_000);
+    window.addEventListener("focus", refreshDay);
+    document.addEventListener("visibilitychange", refreshDay);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshDay);
+      document.removeEventListener("visibilitychange", refreshDay);
+    };
+  }, []);
+
   useEffect(() => {
     if (!loaded) return;
     localStorage.setItem("tobi-voetbalmissie-v3", JSON.stringify({ rules, checked, checkedDate: todayKey, baseTime, maxTime }));
