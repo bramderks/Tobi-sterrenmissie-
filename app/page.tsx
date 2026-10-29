@@ -162,7 +162,9 @@ export default function Home() {
             const oldRules: Rule[] = Array.isArray(data.todayRules) ? data.todayRules : (Array.isArray(data.rules) ? data.rules : initialRules);
             const oldChecked: number[] = Array.isArray(data.checked) ? data.checked : [];
             const doneRules = oldRules.filter(rule => oldChecked.includes(rule.id));
-            const earnedMinutes = Math.max(0, doneRules.reduce((sum, rule) => sum + rule.minutes, 0) + bedtimeExtras.filter(extra => oldChecked.includes(extra.id)).reduce((sum, extra) => sum + extra.minutes, 0) - (oldChecked.includes(103) ? 10 : 0));
+            const completedTasks = doneRules.length;
+            const taskMinutes = doneRules.reduce((sum, rule) => sum + rule.minutes, 0) + (completedTasks >= 5 ? 10 : 0);
+            const earnedMinutes = Math.max(0, taskMinutes - bedtimeExtras.filter(extra => oldChecked.includes(extra.id)).reduce((sum, extra) => sum + extra.minutes, 0) - (oldChecked.includes(103) ? 10 : 0));
             const maxBonus = Math.max(0, Math.min(timeToMinutes(data.maxTime || "20:00"), timeToMinutes("20:00")) - timeToMinutes(data.baseTime || "19:00"));
             const log: DailyLog = {
               date: previousDate,
@@ -210,9 +212,10 @@ export default function Home() {
     return true;
   }).slice(0, 5);
   const checkedCount = activeRules.filter(r => checked.includes(r.id)).length;
-  const baseEarned = useMemo(() => [...activeRules, ...bedtimeExtras].filter(r => checked.includes(r.id)).reduce((sum, r) => sum + r.minutes, 0), [activeRules, checked]);
+  const taskMinutes = useMemo(() => activeRules.filter(r => checked.includes(r.id)).reduce((sum, r) => sum + r.minutes, 0) + (checkedCount >= 5 ? 10 : 0), [activeRules, checked, checkedCount]);
+  const bedtimeRoutineCost = bedtimeExtras.filter(extra => checked.includes(extra.id)).reduce((sum, extra) => sum + extra.minutes, 0);
   const missedYesterdayPenalty = checked.includes(103) ? 10 : 0;
-  const earned = Math.max(0, baseEarned - missedYesterdayPenalty);
+  const earned = Math.max(0, taskMinutes - bedtimeRoutineCost - missedYesterdayPenalty);
   const effectiveMaxTime = Math.min(timeToMinutes(maxTime), timeToMinutes("20:00"));
   const maxBonus = Math.max(0, effectiveMaxTime - timeToMinutes(baseTime));
   const credited = Math.min(earned, maxBonus);
@@ -281,9 +284,9 @@ export default function Home() {
             <div className="bedtime-label">🌙 Jouw bedtijd vanavond</div>
             <div className="bedtime-time">{bedtime}</div>
             <div className="bedtime-progress"><span style={{ width: `${maxBonus ? Math.min(100, credited / maxBonus * 100) : 0}%` }} /></div>
-            <div className="bedtime-earned">◷ <b>+ {credited} minuten verdiend!</b></div>
-            <div className="bedtime-foot">Standaard: {baseTime} <span>•</span> Maximaal: {formatTime(effectiveMaxTime)}</div>
-            <div className="bedtime-warning">⏰ Bedtijd is het moment waarop je écht in bed ligt. Houd dus tijd over voor tandenpoetsen, lezen en het moment dat mama of papa bij je komt liggen. Is je bedtijd 19:55? Dan moet je dan al klaar zijn — het is geen extra leestijd of extra 5 minuten wachten.</div>
+            <div className="bedtime-earned">◷ <b>{credited >= 60 ? "Alle 5 doelen gehaald: +60 minuten!" : `${credited} minuten bedtijd verdiend`}</b></div>
+            <div className="bedtime-foot">Standaard: {baseTime} <span>•</span> Uiterste bedtijd: {formatTime(effectiveMaxTime)}</div>
+            <div className="bedtime-warning">⏰ <b>Naar boven om {formatTime(timeToMinutes(bedtime) - 5)} uur.</b> Je moet altijd 5 minuten vóór je bedtijd naar boven. Zonder lezen en zonder bij mama of papa liggen kun je bij 5 behaalde doelen om 20:00 uur naar bed. Lezen kost 5 minuten bedtijd en bij mama of papa liggen kost ook 5 minuten. Doe je beide, dan is je bedtijd maximaal 19:50.</div>
           </aside>
         </section>
 
@@ -302,9 +305,9 @@ export default function Home() {
               {activeRules.length === 0 && <p className="empty-state">Papa mag eerst een paar spelregels toevoegen.</p>}
             </div>
             <div className="bedtime-extras">
-              <div className="section-heading"><div><h2>Extra bedtijdminuten 🌙</h2><p>Elke extra levert 5 minuten op, maximaal tot 20:00.</p></div></div>
+              <div className="section-heading"><div><h2>Bedtijdkeuzes 🌙</h2><p>Lezen en bij mama of papa liggen kosten elk 5 minuten van je verdiende bedtijd.</p></div></div>
               <button type="button" className={`extra-check-card missed-yesterday-card ${checked.includes(103) ? "completed" : ""}`} onClick={() => { setChecked(old => old.includes(103) ? old.filter(id => id !== 103) : [...old, 103]); setToast(checked.includes(103) ? "De correctie van gisteren is uitgezet." : "😞 Jammer, gisteren hield je je niet aan de bedtijd. Vandaag start je met 10 minuten minder."); }} aria-pressed={checked.includes(103)}><span className="action-emoji">😞</span><span className="extra-check-copy"><strong>Niet nagekomen gisteren</strong><small>Vink dit aan als er gisteren bedtijdstrijd was. Vandaag gaan er 10 minuten af.</small><b>− 10 minuten vandaag</b></span><span className="action-check">{checked.includes(103) ? "✓" : "+"}</span></button>
-              <div className="extra-check-list">{bedtimeExtras.map(extra => { const isChecked = checked.includes(extra.id); return <button type="button" key={extra.id} className={`extra-check-card ${isChecked ? "completed" : ""}`} onClick={() => toggleRule(extra)} aria-pressed={isChecked}><span className="action-emoji">{extra.emoji}</span><span className="extra-check-copy"><strong>{extra.title}</strong><small>{extra.description}</small><b>+ 5 minuten</b></span><span className="action-check">{isChecked ? "✓" : "+"}</span></button>; })}</div>
+              <div className="extra-check-list">{bedtimeExtras.map(extra => { const isChecked = checked.includes(extra.id); return <button type="button" key={extra.id} className={`extra-check-card ${isChecked ? "completed" : ""}`} onClick={() => toggleRule(extra)} aria-pressed={isChecked}><span className="action-emoji">{extra.emoji}</span><span className="extra-check-copy"><strong>{extra.title}</strong><small>{extra.description}</small><b>− 5 minuten bedtijd</b></span><span className="action-check">{isChecked ? "✓" : "+"}</span></button>; })}</div>
             </div>
           </div>
 
@@ -320,9 +323,9 @@ export default function Home() {
         </section>
       </>}
 
-      {tab === "goals" && <section className="subpage panel"><span className="big-emoji">🏆</span><h1>Mijn goals</h1><p className="muted">Elke dag kun je nieuwe voetbalballen verdienen door goede acties te doen.</p><div className="goal-summary"><b>{checkedCount} / 5</b><span>uitdagingen vandaag gescoord</span><small>Elke van de 5 missies levert 10 minuten op. Geen bonus meer; lezen en bij Tobi liggen leveren elk 5 extra minuten op.</small></div><div className="big-ball-row">{Array.from({ length: 5 }, (_, i) => <span key={i} className={i < checkedCount ? "earned-ball" : "empty-ball"}>{i < checkedCount ? "⚽" : "◯"}</span>)}</div><h2>De missie</h2><p>Er zijn maximaal vijf uitdagingen per dag. Elke missie levert 10 minuten op, dus 50 minuten als je ze alle vijf haalt. Er is geen bonus meer. Met <b>Lezen</b> en <b>Bij Tobi liggen (mama of papa)</b> verdien je elk nog 5 minuten. Zo kun je maximaal 60 minuten verdienen en uiterlijk om 20:00 uur naar bed.</p><button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
+      {tab === "goals" && <section className="subpage panel"><span className="big-emoji">🏆</span><h1>Mijn goals</h1><p className="muted">Elke dag kun je nieuwe voetbalballen verdienen door goede acties te doen.</p><div className="goal-summary"><b>{checkedCount} / 5</b><span>uitdagingen vandaag gescoord</span><small>Elke missie levert 10 minuten op. Bij alle 5 doelen krijg je 10 bonusminuten (60 minuten totaal). Lezen en bij mama of papa liggen kosten elk 5 minuten.</small></div><div className="big-ball-row">{Array.from({ length: 5 }, (_, i) => <span key={i} className={i < checkedCount ? "earned-ball" : "empty-ball"}>{i < checkedCount ? "⚽" : "◯"}</span>)}</div><h2>De missie</h2><p>Er zijn maximaal vijf uitdagingen per dag. Elke missie levert 10 minuten op. Als je alle vijf haalt, krijg je 10 bonusminuten: samen 60 minuten en uiterlijk 20:00 uur naar bed. Lezen kost 5 minuten bedtijd en bij mama of papa liggen kost ook 5 minuten. Als je beide kiest, is je bedtijd maximaal 19:50. Je gaat altijd 5 minuten vóór je bedtijd naar boven.</p><button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
 
-      {tab === "overview" && <section className="subpage panel"><span className="big-emoji">📋</span><h1>Dagoverzicht</h1><p className="muted">Dit is je score voor vandaag op dit apparaat.</p><div className="overview-stats"><div><span>Verdiende minuten</span><b>+{credited}</b></div><div><span>Bedtijd</span><b>{bedtime}</b></div><div><span>Acties afgevinkt</span><b>{checkedCount}/{activeRules.length}</b></div></div><h2>Jouw acties</h2>{activeRules.map(r => <div className="overview-row" key={r.id}><span>{r.emoji} {r.title}</span><b className={checked.includes(r.id) ? "green-text" : "muted"}>{checked.includes(r.id) ? `✓ +${r.minutes} min` : "Nog te doen"}</b></div>)}<button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
+      {tab === "overview" && <section className="subpage panel"><span className="big-emoji">📋</span><h1>Dagoverzicht</h1><p className="muted">Dit is je score voor vandaag op dit apparaat.</p><div className="overview-stats"><div><span>Verdiende minuten</span><b>+{credited}</b></div><div><span>Bedtijd</span><b>{bedtime}</b><small>Naar boven: {formatTime(timeToMinutes(bedtime) - 5)}</small></div><div><span>Acties afgevinkt</span><b>{checkedCount}/{activeRules.length}</b></div></div><h2>Jouw acties</h2>{activeRules.map(r => <div className="overview-row" key={r.id}><span>{r.emoji} {r.title}</span><b className={checked.includes(r.id) ? "green-text" : "muted"}>{checked.includes(r.id) ? `✓ +${r.minutes} min` : "Nog te doen"}</b></div>)}<button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
 
       {tab === "logbook" && <section className="subpage panel"><span className="big-emoji">📖</span><h1>Dagboek van Tobi</h1><p className="muted">Afgesloten dagen met de uitdagingen die golden, de goals die je haalde en je verdiende minuten. Een dag wordt automatisch afgesloten om 00:00 uur.</p>{history.length === 0 ? <p className="empty-state">Er zijn nog geen afgesloten dagen. Je eerste dag verschijnt hier na middernacht.</p> : <div className="logbook-list">{history.map(log => <article className="overview-row" key={log.date} style={{ display: "block", padding: "14px 0" }}><div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><strong>{log.date}</strong><b className="green-text">+{log.earnedMinutes} minuten · {log.completedCount}/{log.totalCount} goals</b></div><p className="muted">Berekende bedtijd: {log.bedtime}</p>{log.rules.map(rule => <div key={rule.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 5 }}><span>{rule.emoji} {rule.title}</span><span>{log.checked.includes(rule.id) ? `✓ +${rule.minutes} min` : "Niet behaald"}</span></div>)}</article>)}</div>}<button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
 
