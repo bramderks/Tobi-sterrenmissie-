@@ -163,7 +163,7 @@ export default function Home() {
           if (previousDate && previousDate !== currentKey) {
             const oldHistory: DailyLog[] = Array.isArray(data.history) ? data.history : [];
             const archived = new Set(oldHistory.map(log => log.date));
-            const oldRules: Rule[] = Array.isArray(data.todayRules) ? data.todayRules : (Array.isArray(data.rules) ? data.rules : initialRules);
+            const oldRules: Rule[] = (Array.isArray(data.todayRules) ? data.todayRules : (Array.isArray(data.rules) ? data.rules : initialRules)).map((rule: Rule) => ({ ...rule, minutes: 5 }));
             const oldChecked: number[] = Array.isArray(data.checked) ? data.checked : [];
             const doneRules = oldRules.filter(rule => oldChecked.includes(rule.id));
             const completedTasks = doneRules.length;
