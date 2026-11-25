@@ -6,16 +6,16 @@ type Rule = { id: number; title: string; description: string; minutes: number; e
 const WEEKDAYS = [1, 2, 3, 4, 5];
 const WEEKEND = [0, 6];
 const initialRules: Rule[] = [
-  { id: 1, title: "Geen straf op school", description: "Iedere schooldag: goed gedrag op school en geen straf.", minutes: 10, emoji: "🏫", active: true, days: WEEKDAYS },
+  { id: 1, title: "Geen straf op school", description: "Iedere schooldag: goed gedrag op school en geen straf.", minutes: 5, emoji: "🏫", active: true, days: WEEKDAYS },
   { id: 2, title: "Ochtendroutine", description: "Opstaan, tanden poetsen, aankleden, ontbijten en goed meewerken.", minutes: 10, emoji: "🌞", active: true, days: WEEKDAYS },
   { id: 3, title: "Avondroutine", description: "Spullen opruimen, tafel afruimen, bord leeg eten en goed meewerken.", minutes: 10, emoji: "🌙", active: true, days: [0, 1, 2, 3, 4, 5, 6] },
   { id: 4, title: "Goed luisteren", description: "Goed luisteren naar papa, mama en andere volwassenen.", minutes: 10, emoji: "👂", active: true, days: WEEKDAYS },
   { id: 5, title: "Kleine huishoudelijke taken", description: "Een kleine taak thuis doen zonder gedoe en goed meewerken.", minutes: 10, emoji: "🧹", active: true, days: [1, 2, 4] },
-  { id: 6, title: "Goed luisteren bij voetbaltraining", description: "Op woensdag en vrijdag goed luisteren naar de trainer en je best doen.", minutes: 10, emoji: "⚽", active: true, days: [3, 5] },
+  { id: 6, title: "Goed luisteren bij voetbaltraining", description: "Op woensdag en vrijdag goed luisteren naar de trainer en je best doen.", minutes: 5, emoji: "⚽", active: true, days: [3, 5] },
   { id: 7, title: "Kamer opruimen", description: "In het weekend je kamer netjes opruimen.", minutes: 10, emoji: "🧸", active: true, days: WEEKEND },
   { id: 8, title: "Koffie halen in de ochtend", description: "In het weekend 's ochtends koffie halen voor papa en mama.", minutes: 10, emoji: "☕", active: true, days: WEEKEND },
   { id: 9, title: "Ontbijt maken", description: "In het weekend helpen om het ontbijt klaar te maken.", minutes: 10, emoji: "🥣", active: true, days: WEEKEND },
-  { id: 10, title: "Goed luisteren tijdens het voetballen", description: "Op zaterdag goed luisteren tijdens het voetballen.", minutes: 10, emoji: "⚽", active: true, days: [6] },
+  { id: 10, title: "Goed luisteren tijdens het voetballen", description: "Op zaterdag goed luisteren tijdens het voetballen.", minutes: 5, emoji: "⚽", active: true, days: [6] },
   { id: 11, title: "Schermvrij spelen", description: "Leg telefoon, tablet en tv weg. Speel met speelgoed, maak een puzzel, bouw LEGO of verzin zelf iets leuks zonder scherm.", minutes: 10, emoji: "🧩", active: true, days: WEEKDAYS },
 ];
 const bedtimeExtras: Rule[] = [
@@ -51,7 +51,7 @@ export default function Home() {
   function applySavedData(data: any) {
     if (Array.isArray(data.rules) && data.rules.some((r: Rule) => Array.isArray(r.days))) {
       const savedRules = data.rules as Rule[];
-      setRules([...savedRules, ...initialRules.filter(defaultRule => !savedRules.some(savedRule => savedRule.id === defaultRule.id))]);
+      setRules([...savedRules.map(rule => ({ ...rule, minutes: 5 })), ...initialRules.filter(defaultRule => !savedRules.some(savedRule => savedRule.id === defaultRule.id))]);
     }
     const d = new Date();
     const currentKey = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
@@ -163,7 +163,7 @@ export default function Home() {
             const oldChecked: number[] = Array.isArray(data.checked) ? data.checked : [];
             const doneRules = oldRules.filter(rule => oldChecked.includes(rule.id));
             const completedTasks = doneRules.length;
-            const taskMinutes = doneRules.reduce((sum, rule) => sum + rule.minutes, 0) + (completedTasks >= 5 ? 10 : 0);
+            const taskMinutes = doneRules.reduce((sum, rule) => sum + rule.minutes, 0) + (completedTasks >= 5 ? 5 : 0);
             const cleanClothesConfirmed = oldChecked.includes(104);
             const earnedMinutes = cleanClothesConfirmed ? Math.max(0, taskMinutes - bedtimeExtras.filter(extra => oldChecked.includes(extra.id)).reduce((sum, extra) => sum + extra.minutes, 0) - (oldChecked.includes(103) ? 10 : 0)) : 0;
             const maxBonus = Math.max(0, Math.min(timeToMinutes(data.maxTime || "20:00"), timeToMinutes("20:00")) - timeToMinutes(data.baseTime || "19:00"));
@@ -206,14 +206,18 @@ export default function Home() {
   const today = new Date();
   const dayNumber = today.getDay();
   const rotationDay = dayNumber >= 1 && dayNumber <= 5 && today.getDate() % 2 === 0;
-  const activeRules = rules.filter(r => {
+  const eligibleRules = rules.filter(r => {
     if (!r.active || !r.days?.includes(dayNumber)) return false;
     if (r.title === "Kleine huishoudelijke taken" && rotationDay) return false;
     if (r.title === "Schermvrij spelen" && !rotationDay) return false;
     return true;
-  }).slice(0, 5);
+  });
+  const dayOfYear = Math.floor((new Date(todayKey.replace(/-/g, "/")).getTime() - new Date(new Date(todayKey.replace(/-/g, "/")).getFullYear(), 0, 0).getTime()) / 86400000);
+  const rotationOffset = eligibleRules.length ? dayOfYear % eligibleRules.length : 0;
+  const rotatedRules = [...eligibleRules.slice(rotationOffset), ...eligibleRules.slice(0, rotationOffset)];
+  const activeRules = rotatedRules.slice(0, 5);
   const checkedCount = activeRules.filter(r => checked.includes(r.id)).length;
-  const taskMinutes = useMemo(() => activeRules.filter(r => checked.includes(r.id)).reduce((sum, r) => sum + r.minutes, 0) + (checkedCount >= 5 ? 10 : 0), [activeRules, checked, checkedCount]);
+  const taskMinutes = useMemo(() => activeRules.filter(r => checked.includes(r.id)).reduce((sum, r) => sum + r.minutes, 0) + (checkedCount >= 5 ? 5 : 0), [activeRules, checked, checkedCount]);
   const bedtimeRoutineCost = bedtimeExtras.filter(extra => checked.includes(extra.id)).reduce((sum, extra) => sum + extra.minutes, 0);
   const missedYesterdayPenalty = checked.includes(103) ? 10 : 0;
   const cleanClothesConfirmed = checked.includes(104);
@@ -250,10 +254,10 @@ export default function Home() {
 
   function addRule() {
     if (!newTitle.trim()) return;
-    if (rules.length >= 15) { setToast("Je kunt maximaal 15 uitdagingen instellen in totaal."); return; }
+    if (rules.length >= 20) { setToast("Je kunt maximaal 20 uitdagingen instellen in totaal."); return; }
     setRules(old => [...old, { id: Math.max(0, ...old.map(r => r.id)) + 1, title: newTitle.trim(), description: newTitle.trim(), minutes: 10, emoji: "⚽", active: true, days: [0,1,2,3,4,5,6] }]);
     setNewTitle("");
-    setNewMinutes(10);
+    setNewMinutes(5);
     setToast("Nieuwe spelregel toegevoegd!");
   }
 
@@ -286,7 +290,7 @@ export default function Home() {
             <div className="bedtime-label">🌙 Jouw bedtijd vanavond</div>
             <div className="bedtime-time">{bedtime}</div>
             <div className="bedtime-progress"><span style={{ width: `${maxBonus ? Math.min(100, credited / maxBonus * 100) : 0}%` }} /></div>
-            <div className="bedtime-earned">◷ <b>{!cleanClothesConfirmed ? "Geen extra bedtijd: 19:00 uur" : credited >= 60 ? "Alle 5 doelen gehaald: +60 minuten!" : `${credited} minuten bedtijd verdiend`}</b></div>
+            <div className="bedtime-earned">◷ <b>{!cleanClothesConfirmed ? "Geen extra bedtijd: 19:00 uur" : credited >= 30 ? "Alle 5 doelen gehaald: maximaal +30 minuten!" : `${credited} minuten bedtijd verdiend`}</b></div>
             <div className="bedtime-foot">Standaard: {baseTime} <span>•</span> Uiterste bedtijd: {formatTime(effectiveMaxTime)}</div>
             <div className="bedtime-warning">⏰ <b>Naar boven om {formatTime(timeToMinutes(bedtime) - 5)} uur.</b> {!cleanClothesConfirmed ? "Zonder bevestiging van een hele dag met een schone broek vervalt alle extra bedtijd en is je bedtijd 19:00 uur. " : ""}Je moet altijd 5 minuten vóór je bedtijd naar boven. Zonder lezen en zonder bij mama of papa liggen kun je bij 5 behaalde doelen om 20:00 uur naar bed. Lezen kost 5 minuten bedtijd en bij mama of papa liggen kost ook 5 minuten. Doe je beide, dan is je bedtijd maximaal 19:50.</div>
           </aside>
@@ -317,7 +321,7 @@ export default function Home() {
           <aside className="reward-column">
             <div className="balls-card panel">
               <div className="section-heading compact"><h2>Mijn voetbalballen</h2><span className="score-pill">{checkedCount}</span></div>
-              <p className="muted">{`Vandaag: ${["zondag","maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag"][dayNumber]}`} • Maximaal 5 uitdagingen • 10 minuten per goal</p>
+              <p className="muted">{`Vandaag: ${["zondag","maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag"][dayNumber]}`} • Maximaal 5 uitdagingen • 5 minuten per goal</p>
               <div className="ball-tray">{Array.from({ length: 5 }, (_, i) => <span key={i} className={i < checkedCount ? "earned-ball" : "empty-ball"}>{i < checkedCount ? "⚽" : "◯"}</span>)}</div>
               <div className="reward-message"><div className="training-kid">🏃🏻‍♂️⚽</div><div><b>{checkedCount >= 5 ? "Wat een kampioen!" : checkedCount >= 3 ? "Je bent lekker bezig!" : "Op naar de volgende goal!"}</b><p>{Math.max(0, 5 - checkedCount)} {Math.max(0, 5 - checkedCount) === 1 ? "bal" : "ballen"} tot jouw mini-overwinning.</p></div></div>
             </div>
@@ -326,7 +330,7 @@ export default function Home() {
         </section>
       </>}
 
-      {tab === "goals" && <section className="subpage panel"><span className="big-emoji">🏆</span><h1>Mijn goals</h1><p className="muted">Elke dag kun je nieuwe voetbalballen verdienen door goede acties te doen.</p><div className="goal-summary"><b>{checkedCount} / 5</b><span>uitdagingen vandaag gescoord</span><small>Elke missie levert 10 minuten op. Bij alle 5 doelen krijg je 10 bonusminuten (60 minuten totaal). Lezen en bij mama of papa liggen kosten elk 5 minuten. Je krijgt je verdiende bedtijd alleen als je de hele dag een schone broek hebt gehad; anders is het 19:00 uur.</small></div><div className="big-ball-row">{Array.from({ length: 5 }, (_, i) => <span key={i} className={i < checkedCount ? "earned-ball" : "empty-ball"}>{i < checkedCount ? "⚽" : "◯"}</span>)}</div><h2>De missie</h2><p>Er zijn maximaal vijf uitdagingen per dag. Elke missie levert 10 minuten op. Als je alle vijf haalt, krijg je 10 bonusminuten: samen 60 minuten en uiterlijk 20:00 uur naar bed. Lezen kost 5 minuten bedtijd en bij mama of papa liggen kost ook 5 minuten. Als je beide kiest, is je bedtijd maximaal 19:50. Je krijgt je verdiende bedtijd alleen als je de hele dag een schone broek hebt gehad; anders is het 19:00 uur. Je gaat altijd 5 minuten vóór je bedtijd naar boven.</p><button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
+      {tab === "goals" && <section className="subpage panel"><span className="big-emoji">🏆</span><h1>Mijn goals</h1><p className="muted">Elke dag kun je nieuwe voetbalballen verdienen door goede acties te doen.</p><div className="goal-summary"><b>{checkedCount} / 5</b><span>uitdagingen vandaag gescoord</span><small>Elke missie levert 5 minuten op. Bij alle 5 doelen krijg je 5 bonusminuten (30 minuten totaal). Lezen en bij mama of papa liggen kosten elk 5 minuten. Je krijgt je verdiende bedtijd alleen als je de hele dag een schone broek hebt gehad; anders is het 19:00 uur.</small></div><div className="big-ball-row">{Array.from({ length: 5 }, (_, i) => <span key={i} className={i < checkedCount ? "earned-ball" : "empty-ball"}>{i < checkedCount ? "⚽" : "◯"}</span>)}</div><h2>De missie</h2><p>Er zijn maximaal vijf uitdagingen per dag. Elke missie levert 5 minuten op. Als je alle vijf haalt, krijg je 5 bonusminuten: samen maximaal 30 minuten extra bedtijd. Lezen kost 5 minuten bedtijd en bij mama of papa liggen kost ook 5 minuten. Als je beide kiest, is je bedtijd maximaal 19:50. Je krijgt je verdiende bedtijd alleen als je de hele dag een schone broek hebt gehad; anders is het 19:00 uur. Je gaat altijd 5 minuten vóór je bedtijd naar boven.</p><button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
 
       {tab === "overview" && <section className="subpage panel"><span className="big-emoji">📋</span><h1>Dagoverzicht</h1><p className="muted">Dit is je score voor vandaag op dit apparaat.</p><div className="overview-stats"><div><span>Verdiende minuten</span><b>+{credited}</b></div><div><span>Bedtijd</span><b>{bedtime}</b><small>Naar boven: {formatTime(timeToMinutes(bedtime) - 5)}</small></div><div><span>Acties afgevinkt</span><b>{checkedCount}/{activeRules.length}</b></div></div><h2>Jouw acties</h2>{activeRules.map(r => <div className="overview-row" key={r.id}><span>{r.emoji} {r.title}</span><b className={checked.includes(r.id) ? "green-text" : "muted"}>{checked.includes(r.id) ? `✓ +${r.minutes} min` : "Nog te doen"}</b></div>)}<button className="primary-button" onClick={() => setTab("today")}>Terug naar het veld ⚽</button></section>}
 
@@ -339,7 +343,7 @@ export default function Home() {
 
       {codeEntry && <div className="modal-backdrop"><div className="parent-modal panel"><button className="modal-close" onClick={() => setCodeEntry(false)}>×</button><span className="big-emoji">🔐</span><h2>Ouderinstellingen</h2><p className="muted">Voer de oudercode in om de regels te beheren.</p><form onSubmit={e => { e.preventDefault(); if (parentCode === "2019") { setParentOpen(true); setCodeEntry(false); setParentCode(""); } else { setToast("Dat is niet de juiste code. Probeer opnieuw."); } }}><input aria-label="Oudercode" type="password" inputMode="numeric" value={parentCode} onChange={e => setParentCode(e.target.value)} placeholder="Oudercode" autoFocus /><button className="primary-button" type="submit">Ontgrendelen</button></form><small>Startcode demo: 2019. Verander deze in de echte, beveiligde versie.</small></div></div>}
 
-      {parentOpen && <div className="modal-backdrop"><div className="parent-modal settings-modal panel"><button className="modal-close" onClick={() => setParentOpen(false)}>×</button><span className="big-emoji">⚙️</span><h2>Spelregels van papa</h2><p className="muted">Pas de bedtijd en de beloningen aan.</p><div className="settings-fields"><label>Standaard bedtijd<select value={baseTime} onChange={e => setBaseTime(e.target.value)}><option>18:30</option><option>19:00</option><option>19:30</option><option>20:00</option></select></label><label>Uiterste bedtijd<select value={maxTime} onChange={e => setMaxTime(e.target.value)}><option>19:30</option><option>20:00</option></select></label></div><h3>Uitdagingen per dag</h3><p className="settings-warning">De app kiest automatisch maximaal vijf uitdagingen voor vandaag. Zet een regel uit om die niet meer op de ingeplande dagen te tonen.</p><div className="rule-editor">{rules.map(r => <div className="rule-editor-row" key={r.id}><label className="rule-toggle"><input type="checkbox" checked={r.active} onChange={e => setRules(old => old.map(x => x.id === r.id ? { ...x, active: e.target.checked } : x))}/><span>{r.emoji} <b>{r.title}</b><small>{r.description} · {r.days.map(d => ["zo","ma","di","wo","do","vr","za"][d]).join(", ")}</small></span></label><div className="minute-stepper"><b>{r.minutes} min</b></div><button className="delete-rule" onClick={() => { setRules(old => old.filter(x => x.id !== r.id)); setChecked(old => old.filter(id => id !== r.id)); }} aria-label={`Verwijder ${r.title}`}>×</button></div>)}</div><h3>Nieuwe uitdaging ({rules.length}/15)</h3>{rules.length < 15 ? <form className="add-rule-form" onSubmit={e => { e.preventDefault(); addRule(); }}><input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Bijv. vriendelijk tegen iedereen" aria-label="Naam nieuwe spelregel"/><select value={newMinutes} onChange={e => setNewMinutes(Number(e.target.value))} aria-label="Minuten"><option value={10}>10 min</option></select><button className="primary-button" type="submit">Toevoegen +</button></form> : <p className="settings-warning">Je hebt alle 15 uitdagingen ingesteld. Verwijder eerst een regel om een andere toe te voegen.</p>}<button className="save-button" onClick={() => { setParentOpen(false); setToast("Instellingen opgeslagen op dit apparaat."); }}>Opslaan en sluiten ✓</button><p className="settings-warning">Demo-opslag is lokaal op dit apparaat. De productieversie heeft een echte ouderlogin en gedeelde database nodig.</p></div></div>}
+      {parentOpen && <div className="modal-backdrop"><div className="parent-modal settings-modal panel"><button className="modal-close" onClick={() => setParentOpen(false)}>×</button><span className="big-emoji">⚙️</span><h2>Spelregels van papa</h2><p className="muted">Pas de bedtijd en de beloningen aan.</p><div className="settings-fields"><label>Standaard bedtijd<select value={baseTime} onChange={e => setBaseTime(e.target.value)}><option>18:30</option><option>19:00</option><option>19:30</option><option>20:00</option></select></label><label>Uiterste bedtijd<select value={maxTime} onChange={e => setMaxTime(e.target.value)}><option>19:30</option><option>20:00</option></select></label></div><h3>Uitdagingen per dag</h3><p className="settings-warning">De app kiest automatisch maximaal vijf uitdagingen voor vandaag. Zet een regel uit om die niet meer op de ingeplande dagen te tonen.</p><div className="rule-editor">{rules.map(r => <div className="rule-editor-row" key={r.id}><label className="rule-toggle"><input type="checkbox" checked={r.active} onChange={e => setRules(old => old.map(x => x.id === r.id ? { ...x, active: e.target.checked } : x))}/><span>{r.emoji} <b>{r.title}</b><small>{r.description} · {r.days.map(d => ["zo","ma","di","wo","do","vr","za"][d]).join(", ")}</small></span></label><div className="minute-stepper"><b>{r.minutes} min</b></div><button className="delete-rule" onClick={() => { setRules(old => old.filter(x => x.id !== r.id)); setChecked(old => old.filter(id => id !== r.id)); }} aria-label={`Verwijder ${r.title}`}>×</button></div>)}</div><h3>Nieuwe uitdaging ({rules.length}/20)</h3>{rules.length < 15 ? <form className="add-rule-form" onSubmit={e => { e.preventDefault(); addRule(); }}><input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Bijv. vriendelijk tegen iedereen" aria-label="Naam nieuwe spelregel"/><select value={newMinutes} onChange={e => setNewMinutes(Number(e.target.value))} aria-label="Minuten"><option value={5}>5 min</option></select><button className="primary-button" type="submit">Toevoegen +</button></form> : <p className="settings-warning">Je hebt alle 15 uitdagingen ingesteld. Verwijder eerst een regel om een andere toe te voegen.</p>}<button className="save-button" onClick={() => { setParentOpen(false); setToast("Instellingen opgeslagen op dit apparaat."); }}>Opslaan en sluiten ✓</button><p className="settings-warning">Demo-opslag is lokaal op dit apparaat. De productieversie heeft een echte ouderlogin en gedeelde database nodig.</p></div></div>}
     </main>
   );
 }
